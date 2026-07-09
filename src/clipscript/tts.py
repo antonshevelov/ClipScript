@@ -187,3 +187,40 @@ def default_tts_registry() -> TTSRegistry:
     registry.register(EdgeTTSProvider())
     registry.register(ElevenLabsTTSProvider())
     return registry
+
+
+def list_voices(provider: str) -> list[str]:
+    """List provider voices with provider-specific configuration and error messages."""
+    try:
+        if provider == "edge":
+            edge_voices = asyncio.run(edge_tts.list_voices())
+            return sorted(str(voice["ShortName"]) for voice in edge_voices if "ShortName" in voice)
+        if provider == "elevenlabs":
+            api_key = os.environ.get("ELEVENLABS_API_KEY")
+            if not api_key:
+                raise TTSGenerationError("ELEVENLABS_API_KEY is required for the elevenlabs provider")
+            response = requests.get(
+                "https://api.elevenlabs.io/v1/voices",
+                headers={"xi-api-key": api_key},
+                timeout=20.0,
+            )
+            try:
+                response.raise_for_status()
+                payload = response.json()
+            finally:
+                response.close()
+            entries = payload.get("voices", [])
+            if not isinstance(entries, list):
+                raise TTSGenerationError("ElevenLabs returned an invalid voices response")
+            return sorted(
+                str(entry.get("name"))
+                for entry in entries
+                if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+            )
+    except TTSGenerationError:
+        raise
+    except (requests.RequestException, OSError, ValueError, KeyError) as exc:
+        raise TTSGenerationError(
+            f"could not list {provider} voices; check network access and provider configuration"
+        ) from exc
+    raise TTSGenerationError("provider must be edge or elevenlabs")

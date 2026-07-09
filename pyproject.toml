@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clipscript"
-version = "0.1.1"
+version = "0.2.0"
 description = "Script-driven vertical video generator for social promos, tutorials, and product demos."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -72,7 +72,7 @@ strict = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["edge_tts", "moviepy", "moviepy.*", "PIL", "PIL.*"]
+module = ["edge_tts", "imageio_ffmpeg", "moviepy", "moviepy.*", "PIL", "PIL.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

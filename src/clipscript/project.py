@@ -38,43 +38,41 @@ def _copy_mapping(value: Mapping[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in value.items()}
 
 
-def normalize_script(data: Mapping[str, Any]) -> dict[str, Any]:
-    """Migrate the legacy root ``voiceover`` array into Schema v1 scenes."""
+def normalize_script(data: Mapping[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Migrate v0/v1 input into the Schema v2 runtime representation."""
     normalized = _copy_mapping(data)
-    if "schemaVersion" in normalized:
-        return normalized
+    version = normalized.get("schemaVersion")
+    compatibility = version != 2
+    if version is None:
+        voiceover = normalized.pop("voiceover", None)
+        scenes = normalized.get("scenes")
+        if not isinstance(voiceover, list) or not isinstance(scenes, list):
+            raise ProjectError("legacy scripts must include a root voiceover array and a scenes array")
+        if len(voiceover) != len(scenes):
+            raise ProjectError("legacy voiceover length must match the number of scenes")
+        migrated_scenes: list[dict[str, Any]] = []
+        for scene, text in zip(scenes, voiceover):
+            if not isinstance(scene, Mapping):
+                raise ProjectError("legacy scenes must be objects")
+            if not isinstance(text, str) or not text.strip():
+                raise ProjectError("legacy voiceover entries must be non-empty strings")
+            migrated = _copy_mapping(scene)
+            migrated["voiceover"] = text
+            migrated_scenes.append(migrated)
+        normalized["scenes"] = migrated_scenes
+    elif version != 1 and version != 2:
+        raise ProjectError("schemaVersion must be 1 or 2")
 
-    voiceover = normalized.pop("voiceover", None)
-    scenes = normalized.get("scenes")
-    if not isinstance(voiceover, list) or not isinstance(scenes, list):
-        raise ProjectError(
-            "legacy scripts must include a root voiceover array and a scenes array"
-        )
-    if len(voiceover) != len(scenes):
-        raise ProjectError(
-            "legacy voiceover length must match the number of scenes"
-        )
-
-    migrated_scenes: list[dict[str, Any]] = []
-    for scene, text in zip(scenes, voiceover):
-        if not isinstance(scene, Mapping):
-            raise ProjectError("legacy scenes must be objects")
-        if not isinstance(text, str) or not text.strip():
-            raise ProjectError("legacy voiceover entries must be non-empty strings")
-        migrated = _copy_mapping(scene)
-        migrated["voiceover"] = text
-        migrated_scenes.append(migrated)
-
-    normalized["schemaVersion"] = 1
-    normalized["scenes"] = migrated_scenes
-    return normalized
+    if compatibility:
+        normalized["schemaVersion"] = 2
+    return normalized, compatibility
 
 
 def parse_script(data: Mapping[str, Any]) -> ScriptConfig:
     """Normalize a script and validate it against the current strict schema."""
-    is_legacy = "schemaVersion" not in data
     try:
-        return ScriptConfig.model_validate(normalize_script(data), context={"legacy": is_legacy})
+        normalized, compatibility = normalize_script(data)
+        return ScriptConfig.model_validate(normalized, context={"compatibility": compatibility})
     except (ProjectError, ValidationError) as exc:
         raise ProjectError(str(exc)) from exc
 

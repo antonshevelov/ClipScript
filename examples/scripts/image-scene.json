@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "title": "Image scene example",
+  "output": "../output/image-scene.mp4",
+  "template": "../templates/default.json",
+  "subtitles": {"mode": "srt"},
+  "scenes": [
+    {
+      "type": "image",
+      "src": "../assets/clipscript-sample.ppm",
+      "duration": 2.0,
+      "fit": "contain",
+      "backgroundColor": "#fdf9f1",
+      "caption": "A portable image scene",
+      "subtitle": "ClipScript image scenes work offline"
+    },
+    {
+      "type": "outro",
+      "duration": 1.5,
+      "caption": "Build from a simple script",
+      "transition": {"type": "fade", "duration": 0.4}
+    }
+  ]
+}

@@ -12,8 +12,17 @@ from numpy.typing import NDArray
 from PIL import Image, ImageDraw, ImageFont
 
 from clipscript import media
-from clipscript.models import ChatScene, OutroScene, Scene, TemplateConfig, TitleScene, VideoScene
+from clipscript.models import (
+    ChatScene,
+    ImageScene,
+    OutroScene,
+    Scene,
+    TemplateConfig,
+    TitleScene,
+    VideoScene,
+)
 from clipscript.project import resolve_path
+from clipscript.timeline import plan_chat_timeline, resolved_side
 
 Font = Union[ImageFont.FreeTypeFont, ImageFont.ImageFont]
 Frame = NDArray[np.uint8]
@@ -84,6 +93,29 @@ def draw_caption(image: Image.Image, text: str, font: Font) -> Image.Image:
     return image
 
 
+def make_subtitle_overlay(text: str, context: RenderContext, duration: float) -> media.MediaClip:
+    """Create a lower safe-area subtitle layer distinct from scene captions."""
+    width, height = context.template.resolution
+    image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image, "RGBA")
+    lines = wrap_text(text, context.caption_font, max(1, int(width * 0.84)), draw)
+    boxes = [draw.textbbox((0, 0), line, font=context.caption_font) for line in lines]
+    padding = max(8, width // 28)
+    line_height = max(box[3] - box[1] for box in boxes)
+    rect_height = line_height * len(lines) + padding * 2
+    y = max(0, height - rect_height - max(12, height // 16))
+    draw.rectangle([padding, y, width - padding, y + rect_height], fill=(0, 0, 0, 190))
+    for index, (line, box) in enumerate(zip(lines, boxes)):
+        line_width = box[2] - box[0]
+        draw.text(
+            ((width - line_width) // 2, y + padding + index * line_height),
+            line,
+            fill="#ffffff",
+            font=context.caption_font,
+        )
+    return context.clips.track(media.make_image_clip(np.asarray(image), duration))
+
+
 @dataclass(frozen=True)
 class RenderContext:
     template: TemplateConfig
@@ -143,20 +175,27 @@ def draw_chat_frame(
             ("Олексій", "left", "#e5e5ea", "#17211f"),
         ]
     )
-    messages = scene.messages or []
-    start_time = min(0.2, duration / 4)
-    end_time = max(start_time, duration - min(1.2, duration / 4))
-    step = (end_time - start_time) / max(len(messages) - 1, 1)
-    visible = [
-        (message, senders[index % len(senders)])
-        for index, message in enumerate(messages)
-        if timestamp >= start_time + index * step
-    ]
+    planned = plan_chat_timeline(scene, duration)
+    visible: list[tuple[str, tuple[str, str, str, str]]] = []
+    typing_senders: list[tuple[str, str, str, str]] = []
+    for index, planned_message in enumerate(planned):
+        auto_sender = senders[index % len(senders)]
+        side = resolved_side(index, planned_message.side)
+        sender = (
+            planned_message.sender or auto_sender[0],
+            side,
+            auto_sender[2] if side == "left" else context.template.brandColor,
+            auto_sender[3] if side == "left" else "#ffffff",
+        )
+        if planned_message.is_visible(timestamp):
+            visible.append((planned_message.text, sender))
+        elif planned_message.is_typing(timestamp):
+            typing_senders.append(sender)
     bubble_max_width = max(40, int(width * 0.63))
     layouts: list[tuple[list[str], tuple[str, str, str, str], int, int, int]] = []
     total_height = 0
-    for message, sender in visible:
-        lines = wrap_text(message, context.font_regular, bubble_max_width, draw)
+    for text, sender in visible:
+        lines = wrap_text(text, context.font_regular, bubble_max_width, draw)
         boxes = [draw.textbbox((0, 0), line, font=context.font_regular) for line in lines]
         text_width = int(max(box[2] - box[0] for box in boxes))
         text_height = int(sum(box[3] - box[1] for box in boxes)) + max(2, height // 320) * (len(lines) - 1)
@@ -185,6 +224,20 @@ def draw_chat_frame(
             box = draw.textbbox((0, 0), line, font=context.font_regular)
             line_y += int(box[3] - box[1]) + max(2, height // 320)
         y += bubble_height + max(8, height // 90)
+    if typing_senders:
+        sender = typing_senders[-1]
+        indicator_width, indicator_height = max(36, width // 10), max(20, height // 42)
+        x = margin if sender[1] == "left" else width - margin - indicator_width
+        if y + indicator_height > y_max:
+            y = max(y_min, y_max - indicator_height)
+        draw.rounded_rectangle(
+            [x, y, x + indicator_width, y + indicator_height],
+            radius=max(8, width // 45),
+            fill=sender[2],
+        )
+        dot_y = y + indicator_height // 2
+        for offset in (indicator_width // 4, indicator_width // 2, indicator_width * 3 // 4):
+            draw.ellipse([x + offset - 2, dot_y - 2, x + offset + 2, dot_y + 2], fill=sender[3])
     if scene.chatHeader:
         header_height = max(30, int(height * 0.125))
         draw.rectangle([0, 0, width, header_height], fill=context.template.surfaceColor)
@@ -295,7 +348,46 @@ class VideoRenderer:
             )
             layers.append(context.clips.track(media.make_image_clip(np.asarray(caption), actual_duration)))
         composite = context.clips.track(media.compose(layers, (target_width, target_height)))
+        source_audio_clip = media.audio_of(source)
+        if video_scene.sourceAudioVolume > 0 and source_audio_clip is not None:
+            source_audio = context.clips.track(media.subclip(source_audio_clip, start, end))
+            source_audio = context.clips.track(media.volume(source_audio, video_scene.sourceAudioVolume))
+            return context.clips.track(media.with_audio(composite, source_audio))
         return context.clips.track(media.without_audio(composite))
+
+
+class ImageRenderer:
+    scene_type = "image"
+
+    def render(self, scene: Scene, context: RenderContext, duration: float) -> media.MediaClip:
+        image_scene = cast(ImageScene, scene)
+        source_path = resolve_path(image_scene.src, base_dir=context.script_dir)
+        if not source_path.is_file():
+            raise ValueError(f"image file '{image_scene.src}' was not found")
+        try:
+            with Image.open(source_path) as source:
+                source_image = source.convert("RGB")
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"image file '{image_scene.src}' is unsupported or corrupt") from exc
+        target_width, target_height = context.template.resolution
+        source_width, source_height = source_image.size
+        fit_scale = (
+            min(target_width / source_width, target_height / source_height)
+            if image_scene.fit == "contain"
+            else max(target_width / source_width, target_height / source_height)
+        )
+        fit_scale *= image_scene.scale
+        resized = source_image.resize(
+            (max(1, round(source_width * fit_scale)), max(1, round(source_height * fit_scale))),
+            Image.Resampling.LANCZOS,
+        )
+        canvas = Image.new(
+            "RGBA", (target_width, target_height), image_scene.backgroundColor or context.template.surfaceColor
+        )
+        canvas.paste(resized, ((target_width - resized.width) // 2, (target_height - resized.height) // 2))
+        if image_scene.caption:
+            canvas = draw_caption(canvas, image_scene.caption, context.caption_font)
+        return context.clips.track(media.make_image_clip(np.asarray(canvas.convert("RGB")), duration))
 
 
 def default_renderer_registry() -> RendererRegistry:
@@ -303,5 +395,6 @@ def default_renderer_registry() -> RendererRegistry:
     registry.register(ChatRenderer())
     registry.register(StaticRenderer("title"))
     registry.register(VideoRenderer())
+    registry.register(ImageRenderer())
     registry.register(StaticRenderer("outro"))
     return registry

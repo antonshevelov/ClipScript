@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "title": "Structured chat timeline",
+  "output": "../output/chat-timeline-v2.mp4",
+  "template": "../templates/default.json",
+  "scenes": [
+    {
+      "type": "chat",
+      "duration": 4.0,
+      "messages": [
+        {"text": "Can we make this clearer?", "side": "left", "sender": "Marta", "at": 0.8, "typing": 0.4},
+        {"text": "Yes. Put the timing in the script.", "side": "right", "sender": "You", "at": 2.2, "pause": 0.3}
+      ]
+    }
+  ]
+}

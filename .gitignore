@@ -20,6 +20,7 @@ output/
 examples/output/
 examples/assets/*
 !examples/assets/.gitkeep
+!examples/assets/clipscript-sample.ppm
 
 *.mp4
 *.mov

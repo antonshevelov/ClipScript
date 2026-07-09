@@ -12,12 +12,15 @@ import numpy as np
 try:
     from moviepy import (
         AudioFileClip,
+        CompositeAudioClip,
         CompositeVideoClip,
         ImageClip,
         VideoClip,
         VideoFileClip,
         concatenate_videoclips,
     )
+    from moviepy.audio.fx import AudioFadeIn, AudioFadeOut, MultiplyVolume
+    from moviepy.video.fx import CrossFadeIn
 except ImportError as exc:  # pragma: no cover - exercised during installation failures.
     raise RuntimeError("MoviePy 2.x is required to render ClipScript projects") from exc
 
@@ -92,12 +95,50 @@ def with_audio(clip: MediaClip, audio: MediaClip) -> MediaClip:
     return clip.with_audio(audio)
 
 
+def audio_of(clip: MediaClip) -> MediaClip | None:
+    return clip.audio
+
+
+def volume(clip: MediaClip, factor: float) -> MediaClip:
+    return clip.with_effects([MultiplyVolume(factor)])
+
+
+def mix_audio(clips: Iterable[MediaClip]) -> MediaClip:
+    return CompositeAudioClip(list(clips))
+
+
 def compose(clips: Iterable[MediaClip], size: tuple[int, int]) -> MediaClip:
     return CompositeVideoClip(list(clips), size=size)
 
 
-def concatenate(clips: list[MediaClip]) -> MediaClip:
-    return concatenate_videoclips(clips, method="compose")
+def concatenate(clips: list[MediaClip], fades: list[float] | None = None) -> MediaClip:
+    """Compose clips with fades entering each later clip and matching audio fades."""
+    if not clips:
+        raise ValueError("at least one clip is required")
+    if not fades or not any(fades):
+        return concatenate_videoclips(clips, method="compose")
+    if len(fades) != len(clips):
+        raise ValueError("transition list must match clip list")
+    start = 0.0
+    video_layers: list[MediaClip] = []
+    audio_layers: list[MediaClip] = []
+    for index, (clip, fade) in enumerate(zip(clips, fades)):
+        visual = clip
+        if index and fade:
+            visual = visual.with_effects([CrossFadeIn(fade)])
+        video_layers.append(visual.without_audio().with_start(start))
+        if clip.audio is not None:
+            audio = clip.audio
+            if index and fade:
+                audio = audio.with_effects([AudioFadeIn(fade)])
+            if index + 1 < len(clips) and fades[index + 1]:
+                audio = audio.with_effects([AudioFadeOut(fades[index + 1])])
+            audio_layers.append(audio.with_start(start))
+        start += duration(clip) - fade
+    final = CompositeVideoClip(video_layers, size=size(clips[0])).with_duration(start)
+    if audio_layers:
+        final = final.with_audio(CompositeAudioClip(audio_layers))
+    return final
 
 
 def duration(clip: MediaClip) -> float:

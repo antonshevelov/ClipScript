@@ -11,7 +11,7 @@ from clipscript.project import ProjectError, load_project, parse_script, resolve
 
 def script_data() -> dict[str, object]:
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "title": "Demo",
         "output": "output/demo.mp4",
         "template": "template.json",
@@ -35,7 +35,7 @@ def test_strict_schema_rejects_unknown_and_wrong_scene_fields() -> None:
     ("scene", "message"),
     [
         ({"type": "chat", "duration": 1.0, "messages": []}, "at least one"),
-        ({"type": "video", "src": "video.mp4"}, "duration or end"),
+        ({"type": "video", "src": "video.mp4"}, "require duration"),
         ({"type": "video", "src": "video.mp4", "duration": 1.0, "end": 1.0}, "not both"),
         ({"type": "video", "src": "video.mp4", "end": 1.0, "crop": [0, 0, 0, 1]}, "crop"),
         ({"type": "outro", "duration": 0.0, "caption": "Bye"}, "greater than 0"),
@@ -62,7 +62,7 @@ def test_legacy_root_voiceover_is_migrated() -> None:
 
     config = parse_script(legacy)
 
-    assert config.schema_version == 1
+    assert config.schema_version == 2
     assert config.scenes[0].voiceover == "First"
     assert config.scenes[1].voiceover == "Second"
 
@@ -97,7 +97,7 @@ def test_legacy_example_file_is_valid_and_migrated() -> None:
 
     project = load_project(str(repository_root / "examples" / "scripts" / "legacy-v0.json"))
 
-    assert project.script.schema_version == 1
+    assert project.script.schema_version == 2
     assert project.script.scenes[0].voiceover is not None
 
 
