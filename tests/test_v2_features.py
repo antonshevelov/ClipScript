@@ -203,6 +203,51 @@ def test_chat_typing_changes_the_drawn_frame() -> None:
     assert not np.array_equal(typing, visible)
 
 
+def test_chat_author_labels_render_for_both_sides_and_respect_sender_names() -> None:
+    template = TemplateConfig(resolution=[160, 240], fps=6, fontFamily="system")
+    tracker = media.ClipTracker()
+    context = RenderContext(
+        template=template,
+        script_dir=Path.cwd(),
+        template_dir=Path.cwd(),
+        font_regular=get_system_font("system", 16),
+        font_bold=get_system_font("system", 18),
+        caption_font=get_system_font("system", 16),
+        clips=tracker,
+    )
+
+    def frame(author: str, side: str, sender_names: bool) -> np.ndarray[tuple[int, ...], np.dtype[np.uint8]]:
+        chat = parse_script(
+            v2_script(
+                [
+                    {
+                        "type": "chat",
+                        "duration": 1.0,
+                        "chatHeader": False,
+                        "senderNames": sender_names,
+                        "messages": [{"text": "Same text", "author": author, "side": side, "at": 0.1}],
+                    }
+                ]
+            )
+        ).scenes[0]
+        assert isinstance(chat, ChatScene)
+        return draw_chat_frame(0.5, chat, context, 1.0)
+
+    try:
+        left_marta = frame("Marta", "left", True)
+        left_olena = frame("Olena", "left", True)
+        right_marta = frame("Marta", "right", True)
+        right_olena = frame("Olena", "right", True)
+        hidden_marta = frame("Marta", "right", False)
+        hidden_olena = frame("Olena", "right", False)
+    finally:
+        tracker.close_all()
+
+    assert not np.array_equal(left_marta, left_olena)
+    assert not np.array_equal(right_marta, right_olena)
+    assert np.array_equal(hidden_marta, hidden_olena)
+
+
 def test_v2_image_errors_and_contain_cover_render(tmp_path: Path) -> None:
     bad = tmp_path / "bad.png"
     bad.write_text("not an image", encoding="utf-8")

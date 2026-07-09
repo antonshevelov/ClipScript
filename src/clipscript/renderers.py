@@ -201,7 +201,7 @@ def draw_chat_frame(
         text_height = int(sum(box[3] - box[1] for box in boxes)) + max(2, height // 320) * (len(lines) - 1)
         bubble_width = int(text_width + max(20, width // 22))
         bubble_height = int(text_height + max(18, height // 25))
-        name_height = max(14, height // 64) if scene.senderNames and author[1] == "left" else 0
+        name_height = max(14, height // 64) if scene.senderNames else 0
         entry_height = bubble_height + name_height + max(8, height // 90)
         layouts.append((lines, author, bubble_width, bubble_height, name_height))
         total_height += entry_height
@@ -211,7 +211,14 @@ def draw_chat_frame(
         name, side, color, text_color = author
         x = margin if side == "left" else width - margin - bubble_width
         if name_height:
-            draw.text((x + max(4, width // 120), y), name, fill="#8e8e93", font=context.font_regular)
+            name_box = draw.textbbox((0, 0), name, font=context.font_regular)
+            name_width = name_box[2] - name_box[0]
+            name_x = (
+                x + max(4, width // 120)
+                if side == "left"
+                else max(margin, x + bubble_width - name_width)
+            )
+            draw.text((name_x, y), name, fill="#8e8e93", font=context.font_regular)
             y += name_height
         draw.rounded_rectangle(
             [x, y, x + bubble_width, y + bubble_height],

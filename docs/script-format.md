@@ -38,7 +38,7 @@ Script `output`, `template`, and video `src` paths resolve relative to the scrip
 }
 ```
 
-In Schema v2, `duration` and a non-empty structured `messages` list are required. A message has `text`, optional `side` (`left`, `right`, `auto`), `author`, absolute `at`, `pause`, and positive `typing`; the resolved appearance and pause schedule must fit within the scene. `pause` begins after a message appears and delays the next implicit message: in this example the first message appears at `0.5`, then its `0.4` pause places the second message at `0.9`. Appearance must be strictly before the scene duration. A fade is configured as `{"type":"fade","duration":0.4}` on the scene it enters.
+In Schema v2, `duration` and a non-empty structured `messages` list are required. A message has `text`, optional `side` (`left`, `right`, `auto`), `author`, absolute `at`, `pause`, and positive `typing`; the resolved appearance and pause schedule must fit within the scene. `pause` begins after a message appears and delays the next implicit message: in this example the first message appears at `0.5`, then its `0.4` pause places the second message at `0.9`. Appearance must be strictly before the scene duration. When `senderNames` is true, an explicit or automatic author label is shown above either side's bubble and aligned to that bubble. A fade is configured as `{"type":"fade","duration":0.4}` on the scene it enters.
 
 The generated JSON Schema retains a legacy string-message branch because the same runtime model automatically loads Schema v1 scripts. New Schema v2 source files must use structured message objects; string messages are rejected during v2 validation.
 
