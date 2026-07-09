@@ -8,8 +8,8 @@
       "type": "chat",
       "duration": 4.0,
       "messages": [
-        {"text": "Can we make this clearer?", "side": "left", "sender": "Marta", "at": 0.8, "typing": 0.4},
-        {"text": "Yes. Put the timing in the script.", "side": "right", "sender": "You", "at": 2.2, "pause": 0.3}
+        {"text": "Can we make this clearer?", "side": "left", "author": "Marta", "at": 0.8, "typing": 0.4},
+        {"text": "Yes. Put the timing in the script.", "side": "right", "author": "You", "at": 2.2, "pause": 0.3}
       ]
     }
   ]

@@ -11,7 +11,7 @@ from clipscript.models import ChatScene
 class PlannedMessage:
     text: str
     side: str
-    sender: str | None
+    author: str | None
     appears_at: float
     typing_from: float | None
 
@@ -36,7 +36,7 @@ def plan_chat_timeline(scene: ChatScene, duration: float) -> list[PlannedMessage
         return []
     if all(isinstance(message, str) for message in messages):
         return [
-            PlannedMessage(text=message, side="auto", sender=None, appears_at=at, typing_from=None)
+            PlannedMessage(text=message, side="auto", author=None, appears_at=at, typing_from=None)
             for message, at in zip(messages, _legacy_times(len(messages), duration))
             if isinstance(message, str)
         ]
@@ -52,7 +52,7 @@ def plan_chat_timeline(scene: ChatScene, duration: float) -> list[PlannedMessage
             PlannedMessage(
                 text=message.text,
                 side=message.side,
-                sender=message.sender,
+                author=message.author,
                 appears_at=appears_at,
                 typing_from=appears_at - typing if typing else None,
             )
@@ -67,8 +67,8 @@ def validate_chat_timeline(scene: ChatScene, duration: float) -> None:
     for index, message in enumerate(planned):
         if message.typing_from is not None and message.typing_from < 0:
             raise ValueError("chat message typing cannot begin before scene start")
-        if message.appears_at > duration:
-            raise ValueError("chat message appearance must be within scene duration")
+        if message.appears_at >= duration:
+            raise ValueError("chat message appearance must be strictly before scene duration")
         source = scene.messages[index] if scene.messages is not None else None
         pause = source.pause if not isinstance(source, str) and source is not None else 0.0
         if message.appears_at + pause > duration:

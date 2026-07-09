@@ -68,7 +68,7 @@ def test_structured_chat_timing_typing_and_validation() -> None:
                     "type": "chat",
                     "duration": 3.0,
                     "messages": [
-                        {"text": "First", "side": "right", "sender": "A", "at": 1.0, "typing": 0.5},
+                        {"text": "First", "side": "right", "author": "A", "at": 1.0, "typing": 0.5},
                         {"text": "Second", "pause": 0.2, "at": 2.0},
                     ],
                 }
@@ -105,7 +105,7 @@ def test_structured_chat_timing_typing_and_validation() -> None:
                     {"text": "First", "at": 1.0},
                     {"text": "Implicit", "typing": 0.4},
                 ],
-            "appearance must be within",
+            "strictly before scene duration",
         ),
         ([{"text": "Too late", "at": 1.0, "pause": 0.3}], "pause extends beyond"),
         ([{"text": "Early", "at": 0.2, "typing": 0.3}], "typing cannot begin"),
@@ -117,6 +117,54 @@ def test_chat_validation_uses_resolved_schedule(
     data = v2_script([{"type": "chat", "duration": 1.2, "messages": messages}])
 
     with pytest.raises(ProjectError, match=message):
+        parse_script(data)
+
+
+def test_chat_pause_delays_the_next_implicit_message() -> None:
+    chat = parse_script(
+        v2_script(
+            [
+                {
+                    "type": "chat",
+                    "duration": 2.0,
+                    "messages": [
+                        {"text": "First", "at": 0.5, "pause": 0.4},
+                        {"text": "Second", "author": "You", "side": "right"},
+                    ],
+                }
+            ]
+        )
+    ).scenes[0]
+    assert isinstance(chat, ChatScene)
+
+    timeline = plan_chat_timeline(chat, 2.0)
+
+    assert [message.appears_at for message in timeline] == [0.5, 0.9]
+    assert timeline[1].author == "You"
+
+
+def test_v2_chat_uses_author_not_sender() -> None:
+    valid = v2_script(
+        [{"type": "chat", "duration": 1.0, "messages": [{"text": "Hello", "author": "Marta"}]}]
+    )
+    chat = parse_script(valid).scenes[0]
+    assert isinstance(chat, ChatScene)
+    assert chat.messages and not isinstance(chat.messages[0], str)
+    assert chat.messages[0].author == "Marta"
+
+    invalid = v2_script(
+        [{"type": "chat", "duration": 1.0, "messages": [{"text": "Hello", "sender": "Marta"}]}]
+    )
+    with pytest.raises(ProjectError, match="sender"):
+        parse_script(invalid)
+
+
+def test_chat_rejects_appearance_at_scene_duration() -> None:
+    data = v2_script(
+        [{"type": "chat", "duration": 1.0, "messages": [{"text": "Too late", "at": 1.0}]}]
+    )
+
+    with pytest.raises(ProjectError, match="strictly before scene duration"):
         parse_script(data)
 
 

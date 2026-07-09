@@ -67,7 +67,7 @@ For brand names, write phonetic text in `voiceover` while keeping the visual bra
 ```json
 "voiceover": "Байно. Купуй файно разом."
 ```
-# TTS
+## CLI and Levels
 
 `edge` is the default provider. `elevenlabs` requires `ELEVENLABS_API_KEY` and a template `voice_id` (or `ELEVENLABS_VOICE_ID`). Use `clipscript voices --provider edge` or `clipscript voices --provider elevenlabs` to query a provider; these commands report configuration and network errors without a traceback.
 

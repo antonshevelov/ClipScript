@@ -37,12 +37,12 @@ class TransitionConfig(StrictModel):
 class ChatMessage(StrictModel):
     text: Annotated[str, Field(min_length=1)]
     side: Literal["left", "right", "auto"] = "auto"
-    sender: Annotated[str, Field(min_length=1)] | None = None
+    author: Annotated[str, Field(min_length=1)] | None = None
     at: NonNegativeSeconds | None = None
     pause: NonNegativeSeconds = 0.0
     typing: PositiveSeconds | None = None
 
-    @field_validator("text", "sender")
+    @field_validator("text", "author")
     @classmethod
     def text_must_not_be_blank(cls, value: str | None) -> str | None:
         if value is not None and not value.strip():

@@ -42,7 +42,7 @@ python -m build
 - Those registries are internal Python dependency-injection points; ClipScript does not expose a JSON plugin protocol.
 - `clipscript.media` is the sole MoviePy 2.x boundary; the engine tracks and closes all MoviePy clips.
 - TTS cache entries use atomic writes and SHA-256 keys over every sound-affecting setting.
-# Development
+## Full Release Gate
 
 Run the full local release gate with:
 

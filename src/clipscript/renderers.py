@@ -163,7 +163,7 @@ def draw_chat_frame(
     draw = ImageDraw.Draw(image, "RGBA")
     y_min = int(height * (0.15 if scene.chatHeader else 0.05))
     y_max = int(height * (0.73 if scene.chatHeader else 0.9))
-    senders = (
+    participants = (
         [
             ("Співрозмовник", "left", "#e5e5ea", "#17211f"),
             ("Ви", "right", context.template.brandColor, "#ffffff"),
@@ -177,38 +177,38 @@ def draw_chat_frame(
     )
     planned = plan_chat_timeline(scene, duration)
     visible: list[tuple[str, tuple[str, str, str, str]]] = []
-    typing_senders: list[tuple[str, str, str, str]] = []
+    typing_authors: list[tuple[str, str, str, str]] = []
     for index, planned_message in enumerate(planned):
-        auto_sender = senders[index % len(senders)]
+        auto_author = participants[index % len(participants)]
         side = resolved_side(index, planned_message.side)
-        sender = (
-            planned_message.sender or auto_sender[0],
+        author = (
+            planned_message.author or auto_author[0],
             side,
-            auto_sender[2] if side == "left" else context.template.brandColor,
-            auto_sender[3] if side == "left" else "#ffffff",
+            auto_author[2] if side == "left" else context.template.brandColor,
+            auto_author[3] if side == "left" else "#ffffff",
         )
         if planned_message.is_visible(timestamp):
-            visible.append((planned_message.text, sender))
+            visible.append((planned_message.text, author))
         elif planned_message.is_typing(timestamp):
-            typing_senders.append(sender)
+            typing_authors.append(author)
     bubble_max_width = max(40, int(width * 0.63))
     layouts: list[tuple[list[str], tuple[str, str, str, str], int, int, int]] = []
     total_height = 0
-    for text, sender in visible:
+    for text, author in visible:
         lines = wrap_text(text, context.font_regular, bubble_max_width, draw)
         boxes = [draw.textbbox((0, 0), line, font=context.font_regular) for line in lines]
         text_width = int(max(box[2] - box[0] for box in boxes))
         text_height = int(sum(box[3] - box[1] for box in boxes)) + max(2, height // 320) * (len(lines) - 1)
         bubble_width = int(text_width + max(20, width // 22))
         bubble_height = int(text_height + max(18, height // 25))
-        name_height = max(14, height // 64) if scene.senderNames and sender[1] == "left" else 0
+        name_height = max(14, height // 64) if scene.senderNames and author[1] == "left" else 0
         entry_height = bubble_height + name_height + max(8, height // 90)
-        layouts.append((lines, sender, bubble_width, bubble_height, name_height))
+        layouts.append((lines, author, bubble_width, bubble_height, name_height))
         total_height += entry_height
     y = y_max - total_height if total_height > y_max - y_min else y_min
     margin = max(12, width // 18)
-    for lines, sender, bubble_width, bubble_height, name_height in layouts:
-        name, side, color, text_color = sender
+    for lines, author, bubble_width, bubble_height, name_height in layouts:
+        name, side, color, text_color = author
         x = margin if side == "left" else width - margin - bubble_width
         if name_height:
             draw.text((x + max(4, width // 120), y), name, fill="#8e8e93", font=context.font_regular)
@@ -224,20 +224,20 @@ def draw_chat_frame(
             box = draw.textbbox((0, 0), line, font=context.font_regular)
             line_y += int(box[3] - box[1]) + max(2, height // 320)
         y += bubble_height + max(8, height // 90)
-    if typing_senders:
-        sender = typing_senders[-1]
+    if typing_authors:
+        author = typing_authors[-1]
         indicator_width, indicator_height = max(36, width // 10), max(20, height // 42)
-        x = margin if sender[1] == "left" else width - margin - indicator_width
+        x = margin if author[1] == "left" else width - margin - indicator_width
         if y + indicator_height > y_max:
             y = max(y_min, y_max - indicator_height)
         draw.rounded_rectangle(
             [x, y, x + indicator_width, y + indicator_height],
             radius=max(8, width // 45),
-            fill=sender[2],
+            fill=author[2],
         )
         dot_y = y + indicator_height // 2
         for offset in (indicator_width // 4, indicator_width // 2, indicator_width * 3 // 4):
-            draw.ellipse([x + offset - 2, dot_y - 2, x + offset + 2, dot_y + 2], fill=sender[3])
+            draw.ellipse([x + offset - 2, dot_y - 2, x + offset + 2, dot_y + 2], fill=author[3])
     if scene.chatHeader:
         header_height = max(30, int(height * 0.125))
         draw.rectangle([0, 0, width, header_height], fill=context.template.surfaceColor)
