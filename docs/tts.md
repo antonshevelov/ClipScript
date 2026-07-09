@@ -1,5 +1,7 @@
 # TTS Providers
 
+TTS is only called for a scene with a `voiceover` field. Generated files use an atomic SHA-256 cache key that includes text, provider, voice, voice ID, model, output format, and voice settings.
+
 ClipScript currently supports two text-to-speech providers.
 
 ## Edge TTS
@@ -56,12 +58,12 @@ Override with:
 export CLIPSCRIPT_CACHE_DIR="/absolute/path/to/cache/tts"
 ```
 
-The cache key includes text, provider, voice or voice id, and ElevenLabs model id.
+The cache key includes every sound-affecting provider parameter. Cache replacement is atomic, so failed synthesis cannot leave a partially written entry.
 
 ## Pronunciation
 
 For brand names, write phonetic text in `voiceover` while keeping the visual brand name in captions or video. For example:
 
 ```json
-"voiceover": ["Байно. Купуй файно разом."]
+"voiceover": "Байно. Купуй файно разом."
 ```

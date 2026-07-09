@@ -1,28 +1,22 @@
 # Script Format
 
-ClipScript videos are described with JSON.
+ClipScript videos are JSON documents validated against strict Schema v1.
 
 ## Root Fields
 
 | Field | Type | Required | Description |
 |---|---:|---:|---|
-| `title` | string | yes | Internal video title. |
+| `schemaVersion` | `1` | yes | Current script schema version. |
+| `title` | string | yes | Internal video name. |
 | `output` | string | yes | MP4 output path, relative to the script file. |
 | `template` | string | yes | Template path, relative to the script file. |
-| `voiceover` | string[] | yes | One voiceover line per scene. |
-| `scenes` | object[] | yes | Ordered scene list. |
+| `scenes` | object[] | yes | Ordered scene definitions. |
 
-`voiceover.length` must match `scenes.length`.
+Each scene can include an optional non-empty `voiceover` string. Scenes without it do not call TTS. Unknown fields are rejected, as are string-to-number coercion, invalid duration/start/end/fps/resolution values, and invalid crops.
 
 ## Paths
 
-Paths inside a script are resolved relative to the script file:
-
-- `output`
-- `template`
-- video scene `src`
-
-Paths inside a template, such as `logo`, are resolved relative to the template file.
+Script `output`, `template`, and video `src` paths resolve relative to the script file. Template `logo` resolves relative to the template file.
 
 ## Scene: `chat`
 
@@ -30,6 +24,7 @@ Paths inside a template, such as `logo`, are resolved relative to the template f
 {
   "type": "chat",
   "duration": 8,
+  "voiceover": "Optional narration for this scene",
   "chatHeader": false,
   "chatTitle": "Shared list",
   "chatSubtitle": "Two participants",
@@ -39,15 +34,20 @@ Paths inside a template, such as `logo`, are resolved relative to the template f
 }
 ```
 
+`duration` and a non-empty `messages` list are required. `participantCount` is `2` or `3`.
+
 ## Scene: `title`
 
 ```json
 {
   "type": "title",
   "duration": 1.5,
-  "caption": "Sound familiar?"
+  "caption": "Sound familiar?",
+  "voiceover": "Sound familiar?"
 }
 ```
+
+`duration` and `caption` are required.
 
 ## Scene: `video`
 
@@ -63,6 +63,8 @@ Paths inside a template, such as `logo`, are resolved relative to the template f
 }
 ```
 
+`src` and either `duration` or `end` are required. `start` defaults to `0`; `end` must exceed `start`. Crop is `[x1, y1, x2, y2]` with non-negative values and `x2 > x1`, `y2 > y1`. A requested range past the source is rendered at the actual clamped source duration.
+
 ## Scene: `outro`
 
 ```json
@@ -74,4 +76,12 @@ Paths inside a template, such as `logo`, are resolved relative to the template f
 }
 ```
 
-`url` is optional.
+`duration` and `caption` are required. `url` is optional.
+
+## Legacy 0.1.0 Scripts
+
+Unversioned scripts remain accepted when they include the legacy root `voiceover` array. Its length must equal the number of scenes; the loader migrates each entry into matching scene-level `voiceover` before strict validation.
+
+`examples/scripts/legacy-v0.json` is a runnable validation fixture for this compatibility path.
+
+When `schemaVersion: 1` is present, root `voiceover` is forbidden. This is a format-level breaking change for new versioned scripts only. Existing scene types and both TTS providers are retained.

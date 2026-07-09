@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clipscript"
-version = "0.1.0"
+version = "0.1.1"
 description = "Script-driven vertical video generator for social promos, tutorials, and product demos."
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
   { name = "ClipScript contributors" }
 ]
@@ -17,7 +17,6 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
@@ -27,22 +26,25 @@ classifiers = [
   "Topic :: Software Development :: Build Tools"
 ]
 dependencies = [
-  "moviepy>=1.0.3,<2.0.0",
+  "moviepy>=2.0.0,<3.0.0",
   "edge-tts>=6.1.0",
   "pillow>=10.0.0",
   "imageio-ffmpeg>=0.4.9",
   "pydantic>=2.0.0,<3.0.0",
   "typer>=0.9.0",
   "rich>=13.0.0",
-  "pysubs2>=1.6.0",
   "requests>=2.31.0,<3.0.0",
-  "numpy>=1.23.0"
+  "numpy>=1.23.0",
+  "eval-type-backport>=0.2.0; python_version < '3.10'"
 ]
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0.0",
-  "ruff>=0.8.0"
+  "ruff>=0.8.0",
+  "mypy>=1.13.0",
+  "types-requests>=2.31.0",
+  "build>=1.2.0"
 ]
 
 [project.scripts]
@@ -60,5 +62,20 @@ line-length = 100
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["E501"]
+
+[tool.mypy]
+files = ["src", "tests"]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = ["edge_tts", "moviepy", "moviepy.*", "PIL", "PIL.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+markers = [
+  "smoke: offline MoviePy render verification"
+]

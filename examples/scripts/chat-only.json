@@ -1,12 +1,8 @@
 {
+  "schemaVersion": 1,
   "title": "Chat problem demo",
   "output": "../output/chat-only.mp4",
   "template": "../templates/default.json",
-  "voiceover": [
-    "A shared list in a chat looks simple at first. But after a few messages, it is already hard to find.",
-    "Sound familiar?",
-    "ClipScript turns a short JSON script into a vertical promo video."
-  ],
   "scenes": [
     {
       "type": "chat",
@@ -14,6 +10,7 @@
       "chatHeader": false,
       "senderNames": false,
       "participantCount": 2,
+      "voiceover": "A shared list in a chat looks simple at first. But after a few messages, it is already hard to find.",
       "messages": [
         "What should I buy?",
         "Milk, bread, eggs, cheese, bananas, greens, pasta and coffee",
@@ -36,12 +33,14 @@
     {
       "type": "title",
       "duration": 1.5,
-      "caption": "Sound familiar?"
+      "caption": "Sound familiar?",
+      "voiceover": "Sound familiar?"
     },
     {
       "type": "outro",
       "duration": 3,
-      "caption": "Make short demos from scripts"
+      "caption": "Make short demos from scripts",
+      "voiceover": "ClipScript turns a short JSON script into a vertical promo video."
     }
   ]
 }

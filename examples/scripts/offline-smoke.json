@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "title": "Offline ClipScript example",
+  "output": "../output/offline-smoke.mp4",
+  "template": "../templates/default.json",
+  "scenes": [
+    {
+      "type": "title",
+      "duration": 1.0,
+      "caption": "ClipScript works offline"
+    },
+    {
+      "type": "outro",
+      "duration": 1.0,
+      "caption": "No TTS or external assets required"
+    }
+  ]
+}

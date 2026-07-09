@@ -1,0 +1,21 @@
+{
+  "title": "Legacy v0 compatibility example",
+  "output": "../output/legacy-v0.mp4",
+  "template": "../templates/default.json",
+  "voiceover": [
+    "This root voiceover entry migrates to the title scene.",
+    "This root voiceover entry migrates to the outro scene."
+  ],
+  "scenes": [
+    {
+      "type": "title",
+      "duration": 1.0,
+      "caption": "Legacy input still works"
+    },
+    {
+      "type": "outro",
+      "duration": 1.0,
+      "caption": "Migrated at load time"
+    }
+  ]
+}

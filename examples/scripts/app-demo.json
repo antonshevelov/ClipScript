@@ -1,29 +1,28 @@
 {
+  "schemaVersion": 1,
   "title": "App demo with screen recording",
   "output": "../output/app-demo.mp4",
   "template": "../templates/default.json",
-  "voiceover": [
-    "Start with the problem.",
-    "Show the actual product flow.",
-    "Finish with a clear call to action."
-  ],
   "scenes": [
     {
       "type": "title",
       "duration": 2,
-      "caption": "Problem -> product -> CTA"
+      "caption": "Problem -> product -> CTA",
+      "voiceover": "Start with the problem."
     },
     {
       "type": "video",
       "src": "../assets/app-demo.mp4",
       "start": 0,
       "end": 10,
-      "caption": "Use a real screen recording"
+      "caption": "Use a real screen recording",
+      "voiceover": "Show the actual product flow."
     },
     {
       "type": "outro",
       "duration": 3,
-      "caption": "Ship repeatable video content"
+      "caption": "Ship repeatable video content",
+      "voiceover": "Finish with a clear call to action."
     }
   ]
 }

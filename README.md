@@ -1,66 +1,38 @@
 # ClipScript
 
-ClipScript is a script-driven vertical video generator for social promos, tutorials, product demos, Reels, Shorts, and TikTok-style clips.
-
-It turns JSON scripts into `1080x1920` MP4 videos with:
-
-- animated chat scenes;
-- static title and outro scenes;
-- real screen recordings embedded as video scenes;
-- voiceover generated with Microsoft Edge TTS or ElevenLabs;
-- brand templates for colors, fonts, logos, and output settings.
-
-ClipScript is designed for repeatable content production: write the script once, render consistently, iterate quickly.
+ClipScript generates vertical MP4 videos from JSON scripts. It supports animated chat, title, video, and outro scenes; Edge and ElevenLabs voiceover; portable scenario-relative assets; and template-relative logos.
 
 ## Status
 
-Alpha. The core renderer works, but the scene schema and CLI may still change before `1.0`.
+`0.1.1` stabilizes the core around strict Schema v1, MoviePy 2.x, extensible renderer/TTS registries, and deterministic media cleanup. It remains an alpha release.
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/antonshevelov/ClipScript.git
-cd ClipScript
-
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 
-clipscript generate --input examples/scripts/chat-only.json --overwrite
+clipscript generate --input examples/scripts/offline-smoke.json --overwrite
 ```
 
-The generated file will be written to:
+This writes `examples/output/offline-smoke.mp4`. The example is runnable without TTS, network access, or external media files.
 
-```text
-examples/output/chat-only.mp4
-```
+## Schema v1
 
-## Script Format
-
-A script is a JSON file with:
-
-- `title` - internal video name;
-- `output` - final MP4 path, relative to the script file;
-- `template` - style template path, relative to the script file;
-- `voiceover` - one voiceover text per scene;
-- `scenes` - ordered scene definitions.
-
-Minimal example:
+New scripts require `schemaVersion: 1`. Voiceover is optional and belongs to the scene that needs it; a scene without `voiceover` never invokes TTS.
 
 ```json
 {
+  "schemaVersion": 1,
   "title": "Chat problem demo",
   "output": "../output/chat-only.mp4",
   "template": "../templates/default.json",
-  "voiceover": [
-    "A shared list in a chat looks simple at first.",
-    "But after a few messages, it is already hard to find.",
-    "Use a shared list instead."
-  ],
   "scenes": [
     {
       "type": "chat",
       "duration": 8,
+      "voiceover": "A shared list in a chat looks simple at first.",
       "chatHeader": false,
       "senderNames": false,
       "participantCount": 2,
@@ -80,116 +52,37 @@ Minimal example:
 }
 ```
 
+The schema is strict: unknown fields, wrong scene field combinations, invalid trim/crop values, invalid FPS, and invalid resolution are rejected. See `docs/script-format.md` for the complete format.
+
 ## Scene Types
 
-### `chat`
+- `chat`: animated messages, duration, and chat presentation options.
+- `title`: required duration and caption.
+- `video`: required `src` and either `duration` or `end`; the result is clamped to source media length.
+- `outro`: required duration and caption, with optional URL.
 
-Animated message stream. Useful for showing a problem, conversation, or before-state.
+Paths in scripts are relative to the script file. Template `logo` is relative to the template file.
 
-Common fields:
+## TTS
 
-- `messages`: array of message strings;
-- `duration`: requested duration in seconds;
-- `chatHeader`: show/hide header;
-- `chatTitle`: header title;
-- `chatSubtitle`: header subtitle;
-- `senderNames`: show/hide sender names;
-- `participantCount`: `2` or `3`.
+The default Edge provider needs no key. ElevenLabs uses `ELEVENLABS_API_KEY` and template `voice_id` (or `ELEVENLABS_VOICE_ID`). The cache uses atomic writes and SHA-256 keys over every sound-affecting setting. See `docs/tts.md`.
 
-### `title`
+## Examples and Compatibility
 
-Centered text slide for transitions and hooks.
+- `examples/scripts/offline-smoke.json` is the runnable offline example.
+- `examples/scripts/chat-only.json` is runnable but uses network Edge TTS.
+- `examples/scripts/legacy-v0.json` is a loadable 0.1.0-format compatibility fixture.
+- `examples/scripts/app-demo.json` intentionally requires `examples/assets/app-demo.mp4`; add a real screen recording before validating or rendering it.
 
-### `video`
-
-Embeds a real video recording.
-
-Common fields:
-
-- `src`: path to an MP4/MOV file, relative to the script file;
-- `start` / `end`: trim source video;
-- `crop`: `[x1, y1, x2, y2]`;
-- `backgroundColor`: background behind contained video;
-- `caption`: optional burned-in caption.
-
-### `outro`
-
-Brand-colored final screen with optional logo, caption, and optional `url`.
-
-## Template Format
-
-See `examples/templates/default.json`.
-
-```json
-{
-  "resolution": [1080, 1920],
-  "fps": 30,
-  "brandColor": "#0f7b6c",
-  "surfaceColor": "#fdf9f1",
-  "textColor": "#17211f",
-  "accentColor": "#43a047",
-  "logo": null,
-  "voice": "uk-UA-PolinaNeural",
-  "voice_id": null,
-  "elevenlabsModelId": "eleven_multilingual_v2",
-  "fontFamily": "system",
-  "ttsProvider": "edge"
-}
-```
-
-## TTS Providers
-
-### Edge TTS
-
-Default provider. Free and does not require API keys.
-
-```json
-{
-  "ttsProvider": "edge",
-  "voice": "uk-UA-PolinaNeural"
-}
-```
-
-### ElevenLabs
-
-Higher-quality voiceover through the ElevenLabs API.
-
-```json
-{
-  "ttsProvider": "elevenlabs",
-  "voice_id": "your_voice_id",
-  "elevenlabsModelId": "eleven_multilingual_v2"
-}
-```
-
-Environment:
-
-```bash
-export ELEVENLABS_API_KEY="..."
-export ELEVENLABS_VOICE_ID="..." # optional if voice_id is set in template
-```
-
-Secrets are read from environment variables and are never printed intentionally.
+Unversioned 0.1.0 scripts with a root `voiceover` array remain supported. The loader migrates matching entries to scene-level voiceover before validation. Versioned Schema v1 scripts must not include root `voiceover`; this is the only format-level breaking change in 0.1.1.
 
 ## Development
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
-
-clipscript validate --input examples/scripts/chat-only.json
 ruff check .
+mypy src tests
 pytest
+python -m build
 ```
 
-## Documentation
-
-- `docs/script-format.md`
-- `docs/tts.md`
-- `docs/development.md`
-- `docs/uk/quickstart.md`
-
-## License
-
-MIT.
+Further guidance: `docs/development.md`, `docs/script-format.md`, and `docs/tts.md`.
