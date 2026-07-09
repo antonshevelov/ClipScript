@@ -1,0 +1,29 @@
+{
+  "title": "App demo with screen recording",
+  "output": "../output/app-demo.mp4",
+  "template": "../templates/default.json",
+  "voiceover": [
+    "Start with the problem.",
+    "Show the actual product flow.",
+    "Finish with a clear call to action."
+  ],
+  "scenes": [
+    {
+      "type": "title",
+      "duration": 2,
+      "caption": "Problem -> product -> CTA"
+    },
+    {
+      "type": "video",
+      "src": "../assets/app-demo.mp4",
+      "start": 0,
+      "end": 10,
+      "caption": "Use a real screen recording"
+    },
+    {
+      "type": "outro",
+      "duration": 3,
+      "caption": "Ship repeatable video content"
+    }
+  ]
+}

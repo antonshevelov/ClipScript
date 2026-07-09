@@ -1,0 +1,47 @@
+{
+  "title": "Chat problem demo",
+  "output": "../output/chat-only.mp4",
+  "template": "../templates/default.json",
+  "voiceover": [
+    "A shared list in a chat looks simple at first. But after a few messages, it is already hard to find.",
+    "Sound familiar?",
+    "ClipScript turns a short JSON script into a vertical promo video."
+  ],
+  "scenes": [
+    {
+      "type": "chat",
+      "duration": 8,
+      "chatHeader": false,
+      "senderNames": false,
+      "participantCount": 2,
+      "messages": [
+        "What should I buy?",
+        "Milk, bread, eggs, cheese, bananas, greens, pasta and coffee",
+        "Ok, I will keep it here",
+        "I am leaving now",
+        "Will you be there in 15 minutes?",
+        "Probably in 20",
+        "Do not forget the keys",
+        "Got them",
+        "Did you pay for delivery?",
+        "Yes, sent the receipt",
+        "Can you send the address again?",
+        "One second",
+        "Wait, what did I need to buy?",
+        "The list was above",
+        "Scrolling...",
+        "There are too many messages"
+      ]
+    },
+    {
+      "type": "title",
+      "duration": 1.5,
+      "caption": "Sound familiar?"
+    },
+    {
+      "type": "outro",
+      "duration": 3,
+      "caption": "Make short demos from scripts"
+    }
+  ]
+}

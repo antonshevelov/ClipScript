@@ -1,0 +1,14 @@
+{
+  "resolution": [1080, 1920],
+  "fps": 30,
+  "brandColor": "#0f7b6c",
+  "surfaceColor": "#fdf9f1",
+  "textColor": "#17211f",
+  "accentColor": "#43a047",
+  "logo": null,
+  "voice": "uk-UA-PolinaNeural",
+  "voice_id": null,
+  "elevenlabsModelId": "eleven_multilingual_v2",
+  "fontFamily": "system",
+  "ttsProvider": "edge"
+}

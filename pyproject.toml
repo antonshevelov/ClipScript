@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clipscript"
+version = "0.1.0"
+description = "Script-driven vertical video generator for social promos, tutorials, and product demos."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+  { name = "ClipScript contributors" }
+]
+keywords = ["video", "automation", "reels", "shorts", "tiktok", "tts", "moviepy"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Multimedia :: Video",
+  "Topic :: Software Development :: Build Tools"
+]
+dependencies = [
+  "moviepy>=1.0.3,<2.0.0",
+  "edge-tts>=6.1.0",
+  "pillow>=10.0.0",
+  "imageio-ffmpeg>=0.4.9",
+  "pydantic>=2.0.0,<3.0.0",
+  "typer>=0.9.0",
+  "rich>=13.0.0",
+  "pysubs2>=1.6.0",
+  "requests>=2.31.0,<3.0.0",
+  "numpy>=1.23.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "ruff>=0.8.0"
+]
+
+[project.scripts]
+clipscript = "clipscript.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/antonshevelov/ClipScript"
+Issues = "https://github.com/antonshevelov/ClipScript/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
