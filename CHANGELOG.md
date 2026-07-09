@@ -9,6 +9,7 @@
 - Added provider and renderer registries, atomic SHA-256 TTS caching, offline render coverage, and CI checks.
 - The alpha Python module API moved from `clipscript.cli` to dedicated modules; imports from the old monolith are not preserved as a compatibility contract.
 - Renderer and TTS registries are internal Python dependency-injection points, not a JSON plugin API.
+- Pinned the strict typecheck toolchain to mypy 1.x for reproducible Python 3.9-3.12 CI.
 
 ### Compatibility
 

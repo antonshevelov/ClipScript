@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from click import unstyle
 from typer.testing import CliRunner
 
 from clipscript.cli import app
@@ -60,10 +61,11 @@ def test_cli_requires_an_input_path(command: str) -> None:
 
 def test_cli_help_documents_required_input() -> None:
     result = CliRunner().invoke(app, ["validate", "--help"])
+    output = unstyle(result.output)
 
     assert result.exit_code == 0
-    assert "--input" in result.output
-    assert "[required]" in result.output
+    assert "--input" in output
+    assert "[required]" in output
 
 
 def test_validate_rejects_non_mp4_output(tmp_path: Path) -> None:

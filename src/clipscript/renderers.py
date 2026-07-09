@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal, Protocol, TypeVar, Union, cast
 
 import numpy as np
+from numpy.typing import NDArray
 from PIL import Image, ImageDraw, ImageFont
 
 from clipscript import media
@@ -15,6 +16,7 @@ from clipscript.models import ChatScene, OutroScene, Scene, TemplateConfig, Titl
 from clipscript.project import resolve_path
 
 Font = Union[ImageFont.FreeTypeFont, ImageFont.ImageFont]
+Frame = NDArray[np.uint8]
 TScene = TypeVar("TScene", bound=Scene)
 
 
@@ -123,7 +125,7 @@ def draw_chat_frame(
     scene: ChatScene,
     context: RenderContext,
     duration: float,
-) -> np.ndarray[object, np.dtype[np.uint8]]:
+) -> Frame:
     width, height = context.template.resolution
     image = Image.new("RGBA", (width, height), context.template.surfaceColor)
     draw = ImageDraw.Draw(image, "RGBA")
@@ -236,7 +238,7 @@ class ChatRenderer:
     def render(self, scene: Scene, context: RenderContext, duration: float) -> media.MediaClip:
         chat_scene = cast(ChatScene, scene)
 
-        def frame_function(timestamp: float) -> np.ndarray[object, np.dtype[np.uint8]]:
+        def frame_function(timestamp: float) -> Frame:
             return draw_chat_frame(timestamp, chat_scene, context, duration)
 
         return context.clips.track(media.make_frame_clip(frame_function, duration))
