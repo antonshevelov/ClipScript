@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
-from click import unstyle
 from typer.testing import CliRunner
 
 from clipscript.cli import app
 from clipscript.engine import render_project
 from clipscript.project import load_project
 from clipscript.tts import TTSGenerationError, TTSRegistry
+
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def strip_ansi(value: str) -> str:
+    return ANSI_ESCAPE.sub("", value)
 
 
 def write_project(
@@ -61,7 +67,7 @@ def test_cli_requires_an_input_path(command: str) -> None:
 
 def test_cli_help_documents_required_input() -> None:
     result = CliRunner().invoke(app, ["validate", "--help"])
-    output = unstyle(result.output)
+    output = strip_ansi(result.output)
 
     assert result.exit_code == 0
     assert "--input" in output
