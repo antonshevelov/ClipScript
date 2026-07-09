@@ -1,18 +1,19 @@
 # Script Format
 
-ClipScript videos are JSON documents validated against strict Schema v1.
+ClipScript videos are JSON documents validated against strict Schema v2.
 
 ## Root Fields
 
 | Field | Type | Required | Description |
 |---|---:|---:|---|
-| `schemaVersion` | `1` | yes | Current script schema version. |
+| `schemaVersion` | `2` | yes | Current script schema version. |
 | `title` | string | yes | Internal video name. |
 | `output` | string | yes | MP4 output path, relative to the script file. |
 | `template` | string | yes | Template path, relative to the script file. |
 | `scenes` | object[] | yes | Ordered scene definitions. |
+| `subtitles` | object | no | `off` (default), `burn`, `srt`, or `both`; SRT is next to MP4 unless `output` is set relative to the script. |
 
-Each scene can include an optional non-empty `voiceover` string. Scenes without it do not call TTS. Unknown fields are rejected, as are string-to-number coercion, invalid duration/start/end/fps/resolution values, and invalid crops.
+Each scene can include optional non-empty `voiceover`, `subtitle`, `voiceoverVolume` (0-2), and a `transition` entering that scene. A fade overlaps the preceding scene and may not exceed either adjacent duration. Scenes without voiceover do not call TTS. Unknown fields and coercion are rejected.
 
 ## Paths
 
@@ -34,7 +35,7 @@ Script `output`, `template`, and video `src` paths resolve relative to the scrip
 }
 ```
 
-In Schema v1, `duration` and a non-empty `messages` list are required. `participantCount` is `2` or `3`.
+In Schema v2, `duration` and a non-empty structured `messages` list are required. A message has `text`, optional `side` (`left`, `right`, `auto`), `sender`, absolute `at`, `pause`, and positive `typing`; explicit `at` values are monotonic and within duration. A fade is configured as `{"type":"fade","duration":0.4}` on the scene it enters.
 
 ## Scene: `title`
 
@@ -47,7 +48,7 @@ In Schema v1, `duration` and a non-empty `messages` list are required. `particip
 }
 ```
 
-In Schema v1, `duration` and `caption` are required.
+In Schema v2, `duration` and `caption` are required.
 
 ## Scene: `video`
 
@@ -63,7 +64,15 @@ In Schema v1, `duration` and `caption` are required.
 }
 ```
 
-In Schema v1, `src` and either `duration` or `end` are required. `start` defaults to `0`; `end` must exceed `start`. Crop is `[x1, y1, x2, y2]` with non-negative values and `x2 > x1`, `y2 > y1`. A requested range past the source is rendered at the actual clamped source duration.
+In Schema v2, `src` and `duration` are required. `start` defaults to `0`; `end` may be used for compatibility but cannot be combined with duration. `sourceAudioVolume` defaults to `0`, preserving v0.1.1 mute behavior; positive values preserve and mix original audio with voiceover.
+
+## Scene: `image`
+
+```json
+{"type":"image","src":"../assets/photo.png","duration":2,"fit":"contain","backgroundColor":"#ffffff"}
+```
+
+Images resolve relative to the script. `duration` is required; `fit` is `contain` or `cover`; corrupt or unsupported files fail validation/rendering with a user-facing error.
 
 ## Scene: `outro`
 
@@ -76,11 +85,11 @@ In Schema v1, `src` and either `duration` or `end` are required. `start` default
 }
 ```
 
-In Schema v1, `duration` and `caption` are required. `url` is optional.
+In Schema v2, `duration` and `caption` are required. `url` is optional.
 
 ## Legacy 0.1.0 Scripts
 
-Unversioned scripts remain accepted when they include the legacy root `voiceover` array. Its length must equal the number of scenes; the loader migrates each entry into matching scene-level `voiceover` before strict validation.
+Unversioned scripts remain accepted when they include the legacy root `voiceover` array. Schema v1 is also accepted. Both normalize to Schema v2 at runtime without user edits.
 
 Legacy scenes may omit timing. Chat, title, and outro then use their voiceover duration, or a 5-second fallback. Video scenes without `duration` or `end` likewise use voiceover duration or 5 seconds, clamped to the source media.
 

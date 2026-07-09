@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0]
+
+- Added Schema v2, timed structured chat messages, image scenes, fade transitions, subtitles, and source/voiceover audio mixing.
+- Added `init`, `doctor`, `preview`, `schema`, `voices`, and `cache clear` commands.
+- Preserved automatic migration and rendering compatibility for v0.1.0 and Schema v1 scripts.
+
 ## 0.1.1
 
 - Stabilized the renderer around a versioned strict Schema v1.

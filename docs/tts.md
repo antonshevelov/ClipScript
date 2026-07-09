@@ -67,3 +67,10 @@ For brand names, write phonetic text in `voiceover` while keeping the visual bra
 ```json
 "voiceover": "Байно. Купуй файно разом."
 ```
+# TTS
+
+`edge` is the default provider. `elevenlabs` requires `ELEVENLABS_API_KEY` and a template `voice_id` (or `ELEVENLABS_VOICE_ID`). Use `clipscript voices --provider edge` or `clipscript voices --provider elevenlabs` to query a provider; these commands report configuration and network errors without a traceback.
+
+Voiceover files are cached under `.clipscript/cache/tts` by default, or `CLIPSCRIPT_CACHE_DIR`. `clipscript cache clear --yes` removes only a cache path that is recognizably inside ClipScript's TTS cache.
+
+`voiceoverVolume` controls TTS gain from 0 to 2. Video source audio remains muted by default; set `sourceAudioVolume` above zero to mix it with voiceover.

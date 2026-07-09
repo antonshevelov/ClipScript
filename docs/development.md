@@ -37,8 +37,22 @@ python -m build
 
 ## Design Notes
 
-- `clipscript.models` owns strict Schema v1 and legacy migration occurs in `clipscript.project`.
+- `clipscript.models` owns strict Schema v2 and legacy migration occurs in `clipscript.project`.
 - `clipscript.renderers` and `clipscript.tts` use registries for new implementations.
 - Those registries are internal Python dependency-injection points; ClipScript does not expose a JSON plugin protocol.
 - `clipscript.media` is the sole MoviePy 2.x boundary; the engine tracks and closes all MoviePy clips.
 - TTS cache entries use atomic writes and SHA-256 keys over every sound-affecting setting.
+# Development
+
+Run the full local release gate with:
+
+```bash
+ruff check .
+mypy src tests
+pytest
+python -m build
+python -m pip install --force-reinstall dist/*.whl
+clipscript schema --output /tmp/clipscript-schema.json
+```
+
+Offline media tests use local MoviePy/FFmpeg only. Do not add live Edge or ElevenLabs calls to tests or CI.

@@ -1,10 +1,10 @@
 # ClipScript
 
-ClipScript generates vertical MP4 videos from JSON scripts. It supports animated chat, title, video, and outro scenes; Edge and ElevenLabs voiceover; portable scenario-relative assets; and template-relative logos.
+ClipScript generates vertical MP4 videos from JSON scripts. It supports timed chat, image, title, video, and outro scenes; transitions, subtitles, audio mixing, and portable assets.
 
 ## Status
 
-`0.1.1` stabilizes the core around strict Schema v1, MoviePy 2.x, extensible renderer/TTS registries, and deterministic media cleanup. It remains an alpha release.
+`0.2.0` adds strict Schema v2, creator workflow commands, and compatibility loading for v0.1.0/v0.1.1 projects.
 
 ## Quick Start
 
@@ -18,13 +18,13 @@ clipscript generate --input examples/scripts/offline-smoke.json --overwrite
 
 This writes `examples/output/offline-smoke.mp4`. The example is runnable without TTS, network access, or external media files.
 
-## Schema v1
+## Schema v2
 
-New scripts require `schemaVersion: 1`. Voiceover is optional and belongs to the scene that needs it; a scene without `voiceover` never invokes TTS.
+New scripts require `schemaVersion: 2`. Voiceover is optional and belongs to the scene that needs it; a scene without `voiceover` never invokes TTS.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "title": "Chat problem demo",
   "output": "../output/chat-only.mp4",
   "template": "../templates/default.json",
@@ -36,7 +36,7 @@ New scripts require `schemaVersion: 1`. Voiceover is optional and belongs to the
       "chatHeader": false,
       "senderNames": false,
       "participantCount": 2,
-      "messages": ["What should I buy?", "Milk, bread, eggs", "I am near the store"]
+      "messages": [{"text": "What should I buy?", "at": 0.5}, {"text": "Milk, bread, eggs", "side": "right", "typing": 0.4}]
     },
     {
       "type": "title",
@@ -54,14 +54,14 @@ New scripts require `schemaVersion: 1`. Voiceover is optional and belongs to the
 
 The schema is strict: unknown fields, wrong scene field combinations, invalid trim/crop values, invalid FPS, and invalid resolution are rejected. See `docs/script-format.md` for the complete format.
 
-Both CLI commands require an explicit `--input` path, so installed packages do not rely on repository examples.
+Use `clipscript init PATH` for an offline starter, `clipscript preview --input script.json` for a draft, `clipscript doctor` for local diagnostics, and `clipscript schema` for machine-readable Schema v2.
 
 ## Scene Types
 
-- `chat`: animated messages, duration, and chat presentation options.
-- `title`: Schema v1 requires duration and caption.
-- `video`: Schema v1 requires `src` and either `duration` or `end`; the result is clamped to source media length.
-- `outro`: Schema v1 requires duration and caption, with optional URL.
+- `chat`: timed structured messages, duration, and chat presentation options.
+- `image`: local image with required duration and `contain`/`cover` fitting.
+- `title` and `outro`: require duration and caption.
+- `video`: requires `src` and duration; source audio is muted unless `sourceAudioVolume` is positive.
 
 Paths in scripts are relative to the script file. Template `logo` is relative to the template file.
 
@@ -72,11 +72,12 @@ The default Edge provider needs no key. ElevenLabs uses `ELEVENLABS_API_KEY` and
 ## Examples and Compatibility
 
 - `examples/scripts/offline-smoke.json` is the runnable offline example.
+- `examples/scripts/image-scene.json` is a runnable image/SRT example with a committed neutral asset.
 - `examples/scripts/chat-only.json` is runnable but uses network Edge TTS.
 - `examples/scripts/legacy-v0.json` is a loadable 0.1.0-format compatibility fixture.
 - `examples/scripts/app-demo.json` intentionally requires `examples/assets/app-demo.mp4`; add a real screen recording before validating or rendering it.
 
-Unversioned 0.1.0 scripts with a root `voiceover` array remain supported. The loader migrates matching entries to scene-level voiceover before validation; scenes without timing use voiceover duration or a 5-second fallback. Versioned Schema v1 scripts must not include root `voiceover`; this is the only format-level breaking change in 0.1.1.
+Unversioned v0.1.0 scripts and Schema v1 scripts normalize automatically into the v2 runtime. Their legacy string chat messages retain automatic alternating sides and their original timing fallback behavior.
 
 The Python module API is alpha and changed in 0.1.1: import models from `clipscript.models`, project loading from `clipscript.project`, and rendering from `clipscript.engine`. Imports from the old monolithic `clipscript.cli` module are not a compatibility surface.
 

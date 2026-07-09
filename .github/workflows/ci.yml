@@ -23,5 +23,7 @@ jobs:
         run: mypy src tests
       - run: pytest -m "not smoke"
       - run: python -m build
+      - run: python -m pip install --force-reinstall dist/*.whl
+      - run: clipscript schema --output installed-schema.json
       - if: matrix.python == '3.11'
         run: pytest -m smoke
