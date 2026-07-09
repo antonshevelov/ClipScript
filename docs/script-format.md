@@ -31,11 +31,16 @@ Script `output`, `template`, and video `src` paths resolve relative to the scrip
   "chatSubtitle": "Two participants",
   "senderNames": false,
   "participantCount": 2,
-  "messages": ["Message 1", "Message 2"]
+  "messages": [
+    {"text": "Message 1", "at": 0.5, "typing": 0.3},
+    {"text": "Message 2", "side": "right", "pause": 0.4}
+  ]
 }
 ```
 
-In Schema v2, `duration` and a non-empty structured `messages` list are required. A message has `text`, optional `side` (`left`, `right`, `auto`), `sender`, absolute `at`, `pause`, and positive `typing`; explicit `at` values are monotonic and within duration. A fade is configured as `{"type":"fade","duration":0.4}` on the scene it enters.
+In Schema v2, `duration` and a non-empty structured `messages` list are required. A message has `text`, optional `side` (`left`, `right`, `auto`), `sender`, absolute `at`, `pause`, and positive `typing`; the resolved appearance and pause schedule must fit within the scene. A fade is configured as `{"type":"fade","duration":0.4}` on the scene it enters.
+
+The generated JSON Schema retains a legacy string-message branch because the same runtime model automatically loads Schema v1 scripts. New Schema v2 source files must use structured message objects; string messages are rejected during v2 validation.
 
 ## Scene: `title`
 
@@ -57,7 +62,7 @@ In Schema v2, `duration` and `caption` are required.
   "type": "video",
   "src": "../assets/app-demo.mp4",
   "start": 0,
-  "end": 10,
+  "duration": 10,
   "crop": [100, 0, 984, 1920],
   "backgroundColor": "#f9fcf9",
   "caption": "Use a real screen recording"

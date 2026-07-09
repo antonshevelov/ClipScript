@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from contextlib import suppress
+from math import ceil
 from pathlib import Path
 from typing import Any
 
@@ -134,11 +135,18 @@ def concatenate(clips: list[MediaClip], fades: list[float] | None = None) -> Med
             if index + 1 < len(clips) and fades[index + 1]:
                 audio = audio.with_effects([AudioFadeOut(fades[index + 1])])
             audio_layers.append(audio.with_start(start))
-        start += duration(clip) - fade
+        next_fade = fades[index + 1] if index + 1 < len(fades) else 0.0
+        start += duration(clip) - next_fade
     final = CompositeVideoClip(video_layers, size=size(clips[0])).with_duration(start)
     if audio_layers:
         final = final.with_audio(CompositeAudioClip(audio_layers))
     return final
+
+
+def frame_align(clip: MediaClip, fps: int) -> MediaClip:
+    """Extend the final clip to a whole encoded frame, never truncating media."""
+    aligned_duration = ceil(duration(clip) * fps - 1e-9) / fps
+    return clip.with_duration(aligned_duration)
 
 
 def duration(clip: MediaClip) -> float:

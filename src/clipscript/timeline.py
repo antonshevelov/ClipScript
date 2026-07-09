@@ -61,6 +61,30 @@ def plan_chat_timeline(scene: ChatScene, duration: float) -> list[PlannedMessage
     return planned
 
 
+def validate_chat_timeline(scene: ChatScene, duration: float) -> None:
+    """Reject timing combinations that cannot be displayed within the scene."""
+    planned = plan_chat_timeline(scene, duration)
+    for index, message in enumerate(planned):
+        if message.typing_from is not None and message.typing_from < 0:
+            raise ValueError("chat message typing cannot begin before scene start")
+        if message.appears_at > duration:
+            raise ValueError("chat message appearance must be within scene duration")
+        source = scene.messages[index] if scene.messages is not None else None
+        pause = source.pause if not isinstance(source, str) and source is not None else 0.0
+        if message.appears_at + pause > duration:
+            raise ValueError("chat message pause extends beyond scene duration")
+        if index:
+            previous = planned[index - 1]
+            previous_source = scene.messages[index - 1] if scene.messages is not None else None
+            previous_pause = (
+                previous_source.pause
+                if not isinstance(previous_source, str) and previous_source is not None
+                else 0.0
+            )
+            if message.appears_at < previous.appears_at + previous_pause:
+                raise ValueError("chat message timing conflicts with previous pause")
+
+
 def resolved_side(index: int, requested: str) -> str:
     """Retain the legacy alternating-side behaviour for ``auto`` messages."""
     return requested if requested != "auto" else ("left" if index % 2 == 0 else "right")

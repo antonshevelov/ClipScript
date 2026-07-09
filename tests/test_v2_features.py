@@ -7,12 +7,15 @@ import numpy as np
 import pytest
 from typer.testing import CliRunner
 
+from clipscript import media
 from clipscript.cli import app
 from clipscript.engine import render_project, validate_project_references
-from clipscript.models import ChatScene
+from clipscript.models import ChatScene, TemplateConfig
 from clipscript.project import ProjectError, load_project, parse_script
+from clipscript.renderers import RenderContext, draw_chat_frame, get_system_font
 from clipscript.subtitles import SubtitleCue, plan_subtitles, write_srt
 from clipscript.timeline import plan_chat_timeline, resolved_side
+from clipscript.tts import TTSGenerationError, list_voices
 
 
 def v2_script(scenes: list[dict[str, object]]) -> dict[str, object]:
@@ -87,6 +90,71 @@ def test_structured_chat_timing_typing_and_validation() -> None:
         parse_script(invalid)
 
 
+@pytest.mark.parametrize(
+    ("messages", "message"),
+    [
+        (
+            [
+                {"text": "First", "at": 0.5, "pause": 0.7},
+                {"text": "Conflicts", "at": 1.0},
+            ],
+            "previous pause",
+        ),
+        (
+                [
+                    {"text": "First", "at": 1.0},
+                    {"text": "Implicit", "typing": 0.4},
+                ],
+            "appearance must be within",
+        ),
+        ([{"text": "Too late", "at": 1.0, "pause": 0.3}], "pause extends beyond"),
+        ([{"text": "Early", "at": 0.2, "typing": 0.3}], "typing cannot begin"),
+    ],
+)
+def test_chat_validation_uses_resolved_schedule(
+    messages: list[dict[str, object]], message: str
+) -> None:
+    data = v2_script([{"type": "chat", "duration": 1.2, "messages": messages}])
+
+    with pytest.raises(ProjectError, match=message):
+        parse_script(data)
+
+
+def test_chat_typing_changes_the_drawn_frame() -> None:
+    chat = parse_script(
+        v2_script(
+            [
+                {
+                    "type": "chat",
+                    "duration": 2.0,
+                    "messages": [{"text": "Ready", "at": 1.0, "typing": 0.5}],
+                }
+            ]
+        )
+    ).scenes[0]
+    assert isinstance(chat, ChatScene)
+    template = TemplateConfig(resolution=[96, 144], fps=6, fontFamily="system")
+    tracker = media.ClipTracker()
+    context = RenderContext(
+        template=template,
+        script_dir=Path.cwd(),
+        template_dir=Path.cwd(),
+        font_regular=get_system_font("system", 12),
+        font_bold=get_system_font("system", 14),
+        caption_font=get_system_font("system", 12),
+        clips=tracker,
+    )
+    try:
+        before = draw_chat_frame(0.2, chat, context, 2.0)
+        typing = draw_chat_frame(0.7, chat, context, 2.0)
+        visible = draw_chat_frame(1.1, chat, context, 2.0)
+    finally:
+        tracker.close_all()
+
+    assert not np.array_equal(before, typing)
+    assert not np.array_equal(typing, visible)
+
+
 def test_v2_image_errors_and_contain_cover_render(tmp_path: Path) -> None:
     bad = tmp_path / "bad.png"
     bad.write_text("not an image", encoding="utf-8")
@@ -96,7 +164,7 @@ def test_v2_image_errors_and_contain_cover_render(tmp_path: Path) -> None:
 
     from PIL import Image
 
-    Image.new("RGB", (20, 10), "#0f7b6c").save(tmp_path / "image.png")
+    Image.new("RGB", (20, 10), "#ff0000").save(tmp_path / "image.png")
     script = write_project(
         tmp_path,
         [
@@ -107,6 +175,16 @@ def test_v2_image_errors_and_contain_cover_render(tmp_path: Path) -> None:
     output = tmp_path / "image.mp4"
     render_project(load_project(str(script)), output_path=output)
     assert output.is_file() and output.stat().st_size > 100
+    from moviepy import VideoFileClip
+
+    clip = VideoFileClip(str(output))
+    try:
+        contain_corner = clip.get_frame(0.1)[0, 0]
+        cover_corner = clip.get_frame(0.6)[0, 0]
+    finally:
+        clip.close()
+    assert int(contain_corner[1]) > 200
+    assert int(cover_corner[0]) > 200 and int(cover_corner[1]) < 40
 
 
 def test_fade_subtitles_and_cli_helpers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -132,7 +210,7 @@ def test_fade_subtitles_and_cli_helpers(tmp_path: Path, monkeypatch: pytest.Monk
 
     clip = VideoFileClip(str(output))
     try:
-        assert 1.5 <= clip.duration <= 1.7
+        assert clip.duration == pytest.approx(10 / 6, abs=0.02)
         assert clip.get_frame(0.1).mean() > 0
     finally:
         clip.close()
@@ -155,6 +233,29 @@ def test_fade_subtitles_and_cli_helpers(tmp_path: Path, monkeypatch: pytest.Monk
     assert (preview_script.parent / "output" / "preview.mp4").is_file()
 
 
+def test_fade_blends_frames_and_uses_logical_overlap() -> None:
+    from moviepy import AudioClip, ColorClip
+
+    first_audio = AudioClip(lambda timestamp: 0.2, duration=1.0, fps=8000)
+    second_audio = AudioClip(lambda timestamp: 0.4, duration=1.0, fps=8000)
+    first = ColorClip((8, 8), color=(255, 0, 0), duration=1.0).with_audio(first_audio)
+    second = ColorClip((8, 8), color=(0, 0, 255), duration=1.0).with_audio(second_audio)
+    try:
+        final = media.concatenate([first, second], [0.0, 0.4])
+        frame = final.get_frame(0.8)
+        audio = final.audio.get_frame(0.8)
+        assert media.duration(final) == pytest.approx(1.6)
+        assert 60 < int(frame[0, 0, 0]) < 200
+        assert 60 < int(frame[0, 0, 2]) < 200
+        assert float(np.asarray(audio).mean()) == pytest.approx(0.3)
+    finally:
+        final.close()
+        first.close()
+        second.close()
+        first_audio.close()
+        second_audio.close()
+
+
 def test_srt_writer_is_utf8_and_overlap_aware(tmp_path: Path) -> None:
     cues = [SubtitleCue(0.0, 0.6, "Привіт"), SubtitleCue(0.6, 1.2, "world")]
     output = write_srt(cues, tmp_path / "captions.srt")
@@ -162,6 +263,81 @@ def test_srt_writer_is_utf8_and_overlap_aware(tmp_path: Path) -> None:
         "1\n00:00:00,000 --> 00:00:00,600\n\u041f\u0440\u0438\u0432\u0456\u0442"
     )
     assert plan_subtitles([], [], []) == []
+
+
+def test_schema_stdout_is_machine_readable_json() -> None:
+    result = CliRunner().invoke(app, ["schema"])
+
+    assert result.exit_code == 0, result.output
+    schema = json.loads(result.output)
+    assert schema["properties"]["schemaVersion"]["const"] == 2
+    assert "ChatMessage" in schema["$defs"]
+
+
+def test_init_rejects_a_file_target(tmp_path: Path) -> None:
+    target = tmp_path / "not-a-directory"
+    target.write_text("file", encoding="utf-8")
+    runner = CliRunner()
+
+    for arguments in (["init", str(target)], ["init", str(target), "--force"]):
+        result = runner.invoke(app, arguments)
+        assert result.exit_code == 1
+        assert "not a directory" in " ".join(result.output.split())
+
+
+def test_edge_voice_errors_are_user_facing(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fail() -> list[object]:
+        raise RuntimeError("network unavailable")
+
+    monkeypatch.setattr("clipscript.tts.edge_tts.list_voices", fail)
+    with pytest.raises(TTSGenerationError, match="could not list edge voices"):
+        list_voices("edge")
+    monkeypatch.setattr("clipscript.cli.list_voices", lambda provider: list_voices(provider))
+    result = CliRunner().invoke(app, ["voices", "--provider", "edge"])
+    assert result.exit_code == 1
+    assert "Voice lookup failed" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_preview_even_dimensions_and_isolated_srt_output(tmp_path: Path) -> None:
+    production_srt = tmp_path / "production.srt"
+    production_srt.write_text("preserve", encoding="utf-8")
+    script = write_project(
+        tmp_path,
+        [{"type": "title", "duration": 0.5, "caption": "Draft", "subtitle": "Caption"}],
+        {"mode": "srt", "output": "production.srt"},
+    )
+    (tmp_path / "template.json").write_text(
+        json.dumps({"resolution": [65, 97], "fps": 6, "fontFamily": "system"}), encoding="utf-8"
+    )
+    result = CliRunner().invoke(app, ["preview", "--input", str(script)])
+
+    assert result.exit_code == 0, result.output
+    from moviepy import VideoFileClip
+
+    preview = VideoFileClip(str(tmp_path / "output" / "preview.mp4"))
+    try:
+        assert preview.w >= 2 and preview.h >= 2
+        assert preview.w % 2 == 0 and preview.h % 2 == 0
+    finally:
+        preview.close()
+    assert production_srt.read_text(encoding="utf-8") == "preserve"
+    assert (tmp_path / "output" / "preview.srt").is_file()
+
+
+def test_audio_mixing_applies_source_and_voiceover_volume() -> None:
+    from moviepy import AudioClip
+
+    source = AudioClip(lambda timestamp: 0.2, duration=0.5, fps=8000)
+    voiceover = AudioClip(lambda timestamp: 0.4, duration=0.5, fps=8000)
+    try:
+        mixed = media.mix_audio([media.volume(source, 0.5), media.volume(voiceover, 0.75)])
+        sample = mixed.get_frame(0.1)
+        assert float(np.asarray(sample).mean()) == pytest.approx(0.4)
+    finally:
+        mixed.close()
+        source.close()
+        voiceover.close()
 
 
 @pytest.mark.smoke

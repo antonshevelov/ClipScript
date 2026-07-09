@@ -140,7 +140,7 @@ def render_project(
             if fade and fade > min(durations[index - 1], durations[index]):
                 raise ValueError("fade transition duration exceeds an adjacent rendered scene")
             fades.append(fade or 0.0)
-        final_clip = tracker.track(media.concatenate(clips, fades))
+        final_clip = tracker.track(media.frame_align(media.concatenate(clips, fades), project.template.fps))
         if progress:
             progress("Writing MP4")
         media.write_mp4(final_clip, temporary_output, project.template.fps, temp_audio_path)

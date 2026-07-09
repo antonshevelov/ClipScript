@@ -179,29 +179,18 @@ class ScriptConfig(StrictModel):
                     isinstance(message, str) for message in scene.messages
                 ):
                     raise ValueError("v2 chat messages must be structured objects")
-            if isinstance(scene, ChatScene) and scene.messages:
-                structured_messages = [
-                    message for message in scene.messages if isinstance(message, ChatMessage)
+            if isinstance(scene, ChatScene) and scene.messages and scene.duration is not None:
+                explicit = [
+                    message.at
+                    for message in scene.messages
+                    if isinstance(message, ChatMessage) and message.at is not None
                 ]
-                explicit = [message.at for message in structured_messages if message.at is not None]
                 if explicit != sorted(explicit):
                     raise ValueError("chat message at values must be monotonic")
-                if scene.duration is not None and any(value > scene.duration for value in explicit):
-                    raise ValueError("chat message at must be within scene duration")
-                if any(
-                    message.at is not None
-                    and message.typing is not None
-                    and message.typing > message.at
-                    for message in structured_messages
-                ):
-                    raise ValueError("chat message typing cannot begin before scene start")
-                for previous_message, message in zip(structured_messages, structured_messages[1:]):
-                    if (
-                        previous_message.at is not None
-                        and message.at is not None
-                        and message.at < previous_message.at + previous_message.pause
-                    ):
-                        raise ValueError("chat message timing conflicts with previous pause")
+                # Local import avoids a model/timeline import cycle while validating resolved timing.
+                from clipscript.timeline import validate_chat_timeline
+
+                validate_chat_timeline(scene, scene.duration)
             if index > 0 and scene.transition.type == "fade":
                 previous = self.scenes[index - 1]
                 duration = scene.transition.duration

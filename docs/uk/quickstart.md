@@ -54,3 +54,5 @@ clipscript generate --input my-video/script.json
 ```
 
 `init` створює офлайн-проєкт Schema v2. Для діагностики локального Python, FFmpeg і кешу використовуйте `clipscript doctor`. Неверсіоновані v0.1.0 та Schema v1 сценарії завантажуються сумісно без ручної міграції.
+
+`preview` пише SRT поруч із preview MP4. Навіть якщо production-сценарій має `subtitles.output`, preview не перезаписує цей файл.

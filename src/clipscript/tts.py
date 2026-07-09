@@ -219,7 +219,8 @@ def list_voices(provider: str) -> list[str]:
             )
     except TTSGenerationError:
         raise
-    except (requests.RequestException, OSError, ValueError, KeyError) as exc:
+    except Exception as exc:
+        # Provider clients expose several async transport exception classes.
         raise TTSGenerationError(
             f"could not list {provider} voices; check network access and provider configuration"
         ) from exc

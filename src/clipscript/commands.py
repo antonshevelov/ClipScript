@@ -21,6 +21,8 @@ def effective_cache_dir() -> Path:
 
 def initialize_project(target: Path, force: bool) -> Path:
     """Write a small Schema v2 project which renders without a network provider."""
+    if target.exists() and not target.is_dir():
+        raise ProjectError(f"'{target}' exists and is not a directory")
     if target.exists() and any(target.iterdir()) and not force:
         raise ProjectError(f"'{target}' is not empty; use --force to replace starter files")
     target.mkdir(parents=True, exist_ok=True)

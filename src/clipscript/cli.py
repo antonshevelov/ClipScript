@@ -103,11 +103,22 @@ def preview(
         raise typer.Exit(code=1)
     width, height = project.template.resolution
     scale = min(1.0, 360 / max(width, height))
+    draft_width = max(2, round(width * scale))
+    draft_height = max(2, round(height * scale))
+    draft_width -= draft_width % 2
+    draft_height -= draft_height % 2
     draft_template = project.template.model_copy(
-        update={"resolution": [max(2, round(width * scale)), max(2, round(height * scale))], "fps": min(12, project.template.fps)}
+        update={"resolution": [draft_width, draft_height], "fps": min(12, project.template.fps)}
+    )
+    preview_script = project.script.model_copy(
+        update={"subtitles": project.script.subtitles.model_copy(update={"output": None})}
     )
     try:
-        rendered = render_project(replace(project, template=draft_template), output_path=output, progress=console.print)
+        rendered = render_project(
+            replace(project, script=preview_script, template=draft_template),
+            output_path=output,
+            progress=console.print,
+        )
     except (OSError, RuntimeError, ValueError) as exc:
         console.print(f"[red]Preview failed: {exc}[/red]")
         raise typer.Exit(code=1) from exc
@@ -128,7 +139,7 @@ def schema(
         output.write_text(content, encoding="utf-8")
         console.print(f"Schema written: {output}")
     else:
-        console.print(content, end="")
+        typer.echo(content, nl=False)
 
 
 @app.command()
