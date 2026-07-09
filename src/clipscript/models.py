@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 PositiveSeconds = Annotated[float, Field(gt=0.0)]
 NonNegativeSeconds = Annotated[float, Field(ge=0.0)]
@@ -32,8 +32,8 @@ class SceneBase(StrictModel):
 
 class ChatScene(SceneBase):
     type: Literal["chat"]
-    duration: PositiveSeconds
-    messages: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1)
+    duration: PositiveSeconds | None = None
+    messages: list[Annotated[str, Field(min_length=1)]] | None = None
     caption: str | None = None
     chatHeader: bool = True
     chatTitle: Annotated[str, Field(min_length=1)] = "Shared list"
@@ -44,8 +44,8 @@ class ChatScene(SceneBase):
 
 class TitleScene(SceneBase):
     type: Literal["title"]
-    duration: PositiveSeconds
-    caption: Annotated[str, Field(min_length=1)]
+    duration: PositiveSeconds | None = None
+    caption: Annotated[str, Field(min_length=1)] | None = None
 
 
 class VideoScene(SceneBase):
@@ -72,8 +72,6 @@ class VideoScene(SceneBase):
 
     @model_validator(mode="after")
     def validate_trim(self) -> VideoScene:
-        if self.duration is None and self.end is None:
-            raise ValueError("video scenes require duration or end")
         if self.duration is not None and self.end is not None:
             raise ValueError("video scenes must use duration or end, not both")
         if self.end is not None and self.end <= self.start:
@@ -83,8 +81,8 @@ class VideoScene(SceneBase):
 
 class OutroScene(SceneBase):
     type: Literal["outro"]
-    duration: PositiveSeconds
-    caption: Annotated[str, Field(min_length=1)]
+    duration: PositiveSeconds | None = None
+    caption: Annotated[str, Field(min_length=1)] | None = None
     url: Annotated[str, Field(min_length=1)] | None = None
 
 
@@ -99,6 +97,24 @@ class ScriptConfig(StrictModel):
     output: Annotated[str, Field(min_length=1)]
     template: Annotated[str, Field(min_length=1)]
     scenes: list[Scene] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_scene_requirements(self, info: ValidationInfo) -> ScriptConfig:
+        """Keep legacy timing optional while enforcing the explicit Schema v1 contract."""
+        if not self.output.lower().endswith(".mp4"):
+            raise ValueError("output file must use the .mp4 extension")
+        if info.context and info.context.get("legacy"):
+            return self
+        for scene in self.scenes:
+            if isinstance(scene, ChatScene):
+                if scene.duration is None or not scene.messages:
+                    raise ValueError("versioned chat scenes require duration and at least one message")
+            elif isinstance(scene, (TitleScene, OutroScene)):
+                if scene.duration is None or scene.caption is None:
+                    raise ValueError(f"versioned {scene.type} scenes require duration and caption")
+            elif isinstance(scene, VideoScene) and scene.duration is None and scene.end is None:
+                raise ValueError("versioned video scenes require duration or end")
+        return self
 
 
 class TemplateConfig(StrictModel):

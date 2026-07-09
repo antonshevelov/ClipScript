@@ -8,7 +8,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from clipscript import media
-from clipscript.models import ChatScene, OutroScene, Scene, TitleScene
+from clipscript.models import ChatScene, OutroScene, Scene, TitleScene, VideoScene
 from clipscript.project import Project, resolve_path
 from clipscript.renderers import (
     RenderContext,
@@ -34,10 +34,14 @@ def validate_project_references(project: Project) -> None:
             raise ValueError(f"template logo '{project.template.logo}' was not found")
 
 
-def _static_duration(scene: Scene, audio_duration: float) -> float:
+def scene_duration(scene: Scene, audio_duration: float) -> float:
+    """Select timing while preserving the unversioned 0.1.0 fallback behavior."""
     if isinstance(scene, (ChatScene, TitleScene, OutroScene)):
-        return max(scene.duration, audio_duration)
-    return 0.0
+        requested = scene.duration or 0.0
+        return max(requested, audio_duration) or 5.0
+    if isinstance(scene, VideoScene):
+        return scene.duration or audio_duration or 5.0
+    raise ValueError(f"unsupported scene type '{scene.type}'")
 
 
 def render_project(
@@ -86,7 +90,7 @@ def render_project(
                 audio_clip = tracker.track(media.open_audio(audio_path))
                 audio_duration = media.duration(audio_clip)
 
-            visual = registry.get(scene.type).render(scene, context, _static_duration(scene, audio_duration))
+            visual = registry.get(scene.type).render(scene, context, scene_duration(scene, audio_duration))
             visual_duration = media.duration(visual)
             if audio_clip is not None:
                 audio_for_scene = audio_clip

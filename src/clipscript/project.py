@@ -24,9 +24,10 @@ def resolve_path(path: str, base_dir: Path | None = None) -> Path:
     candidate = Path(path)
     if candidate.is_absolute():
         return candidate
+    if base_dir is not None:
+        return base_dir / candidate
 
-    bases = ([base_dir] if base_dir is not None else []) + [Path.cwd(), PACKAGE_DIR]
-    candidates = [base / candidate for base in bases]
+    candidates = [Path.cwd() / candidate, PACKAGE_DIR / candidate]
     for resolved in candidates:
         if resolved.exists() or resolved.parent.exists():
             return resolved
@@ -71,8 +72,9 @@ def normalize_script(data: Mapping[str, Any]) -> dict[str, Any]:
 
 def parse_script(data: Mapping[str, Any]) -> ScriptConfig:
     """Normalize a script and validate it against the current strict schema."""
+    is_legacy = "schemaVersion" not in data
     try:
-        return ScriptConfig.model_validate(normalize_script(data))
+        return ScriptConfig.model_validate(normalize_script(data), context={"legacy": is_legacy})
     except (ProjectError, ValidationError) as exc:
         raise ProjectError(str(exc)) from exc
 

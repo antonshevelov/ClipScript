@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from clipscript.models import TemplateConfig
+from clipscript.engine import scene_duration
+from clipscript.models import TemplateConfig, TitleScene, VideoScene
 from clipscript.project import ProjectError, load_project, parse_script, resolve_path
 
 
@@ -33,7 +34,7 @@ def test_strict_schema_rejects_unknown_and_wrong_scene_fields() -> None:
 @pytest.mark.parametrize(
     ("scene", "message"),
     [
-        ({"type": "chat", "duration": 1.0, "messages": []}, "at least 1"),
+        ({"type": "chat", "duration": 1.0, "messages": []}, "at least one"),
         ({"type": "video", "src": "video.mp4"}, "duration or end"),
         ({"type": "video", "src": "video.mp4", "duration": 1.0, "end": 1.0}, "not both"),
         ({"type": "video", "src": "video.mp4", "end": 1.0, "crop": [0, 0, 0, 1]}, "crop"),
@@ -66,6 +67,31 @@ def test_legacy_root_voiceover_is_migrated() -> None:
     assert config.scenes[1].voiceover == "Second"
 
 
+def test_legacy_scenes_without_timing_keep_fallback_behavior() -> None:
+    legacy = {
+        "title": "Legacy timing",
+        "output": "output/legacy.mp4",
+        "template": "template.json",
+        "voiceover": ["Static narration", "Video narration"],
+        "scenes": [
+            {"type": "title", "caption": "Static scene"},
+            {"type": "video", "src": "source.mp4"},
+        ],
+    }
+
+    config = parse_script(legacy)
+    static_scene, video_scene = config.scenes
+
+    assert isinstance(static_scene, TitleScene)
+    assert isinstance(video_scene, VideoScene)
+    assert static_scene.duration is None
+    assert video_scene.duration is None and video_scene.end is None
+    assert scene_duration(static_scene, 1.25) == 1.25
+    assert scene_duration(static_scene, 0.0) == 5.0
+    assert scene_duration(video_scene, 1.25) == 1.25
+    assert scene_duration(video_scene, 0.0) == 5.0
+
+
 def test_legacy_example_file_is_valid_and_migrated() -> None:
     repository_root = Path(__file__).resolve().parents[1]
 
@@ -79,6 +105,13 @@ def test_versioned_script_rejects_legacy_root_voiceover() -> None:
     data = script_data()
     data["voiceover"] = ["No longer valid here"]
     with pytest.raises(ProjectError, match="voiceover"):
+        parse_script(data)
+
+
+def test_output_must_be_mp4_during_project_validation() -> None:
+    data = script_data()
+    data["output"] = "output/demo.avi"
+    with pytest.raises(ProjectError, match="mp4"):
         parse_script(data)
 
 
@@ -106,3 +139,13 @@ def test_resolve_path_prefers_script_directory(tmp_path: Path) -> None:
     target.write_text("{}", encoding="utf-8")
 
     assert resolve_path("template.json", base_dir=script_dir) == target
+
+
+def test_resolve_path_uses_base_dir_even_when_cwd_parent_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    script_dir = tmp_path / "scripts"
+    cwd = tmp_path / "cwd"
+    script_dir.mkdir()
+    (cwd / "assets").mkdir(parents=True)
+    monkeypatch.chdir(cwd)
+
+    assert resolve_path("assets/new.json", base_dir=script_dir) == script_dir / "assets" / "new.json"

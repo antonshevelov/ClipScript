@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from clipscript.renderers import default_renderer_registry
-from clipscript.tts import TTSCache, TTSRegistry, TTSRequest
+from clipscript.tts import TTSCache, TTSGenerationError, TTSRegistry, TTSRequest
 
 
 class FakeProvider:
@@ -17,6 +17,13 @@ class FakeProvider:
     def synthesize(self, text: str, request: TTSRequest, output_path: Path) -> None:
         self.calls += 1
         output_path.write_bytes(f"{text}:{request.voice}".encode())
+
+
+class BrokenProvider:
+    name = "broken"
+
+    def synthesize(self, text: str, request: TTSRequest, output_path: Path) -> None:
+        raise OSError("network unavailable")
 
 
 def test_default_renderer_registry_contains_all_scene_types() -> None:
@@ -56,3 +63,14 @@ def test_tts_cache_is_atomic_and_uses_all_sound_parameters(tmp_path: Path) -> No
     assert provider.calls == 2
     assert first_path.read_bytes() == b"Hello:voice-a"
     assert not list(tmp_path.glob(".*.mp3"))
+
+
+def test_tts_cache_wraps_provider_failure_without_partial_audio(tmp_path: Path) -> None:
+    registry = TTSRegistry()
+    registry.register(BrokenProvider())
+    cache = TTSCache(tmp_path, registry)
+
+    with pytest.raises(TTSGenerationError, match="TTS provider 'broken' failed"):
+        cache.synthesize("Hello", TTSRequest(provider="broken", voice="voice"))
+
+    assert not list(tmp_path.iterdir())

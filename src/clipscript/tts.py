@@ -50,6 +50,10 @@ class TTSProvider(Protocol):
         """Write encoded audio to ``output_path``."""
 
 
+class TTSGenerationError(RuntimeError):
+    """A provider failure that can be shown safely at the CLI boundary."""
+
+
 class TTSRegistry:
     """Maps configured provider names to independently testable implementations."""
 
@@ -154,9 +158,14 @@ class TTSCache:
 
         temporary_path = self._cache_dir / f".{cache_path.stem}.{uuid.uuid4().hex}.mp3"
         try:
-            self._providers.get(request.provider).synthesize(text, request, temporary_path)
+            try:
+                self._providers.get(request.provider).synthesize(text, request, temporary_path)
+            except Exception as exc:
+                raise TTSGenerationError(
+                    f"TTS provider '{request.provider}' failed; check provider settings and network access"
+                ) from exc
             if not temporary_path.is_file() or temporary_path.stat().st_size == 0:
-                raise RuntimeError(f"TTS provider '{request.provider}' produced no audio")
+                raise TTSGenerationError(f"TTS provider '{request.provider}' produced no audio")
             os.replace(temporary_path, cache_path)
         finally:
             temporary_path.unlink(missing_ok=True)

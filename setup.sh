@@ -21,5 +21,5 @@ mkdir -p examples/output examples/assets .clipscript/cache/tts
 echo "Setup complete."
 echo "Run:"
 echo "  source .venv/bin/activate"
-echo "  clipscript validate --input examples/scripts/chat-only.json"
-echo "  clipscript generate --input examples/scripts/chat-only.json --overwrite"
+echo "  clipscript validate --input examples/scripts/offline-smoke.json"
+echo "  clipscript generate --input examples/scripts/offline-smoke.json --overwrite"

@@ -141,12 +141,13 @@ def draw_chat_frame(
             ("Олексій", "left", "#e5e5ea", "#17211f"),
         ]
     )
+    messages = scene.messages or []
     start_time = min(0.2, duration / 4)
     end_time = max(start_time, duration - min(1.2, duration / 4))
-    step = (end_time - start_time) / max(len(scene.messages) - 1, 1)
+    step = (end_time - start_time) / max(len(messages) - 1, 1)
     visible = [
         (message, senders[index % len(senders)])
-        for index, message in enumerate(scene.messages)
+        for index, message in enumerate(messages)
         if timestamp >= start_time + index * step
     ]
     bubble_max_width = max(40, int(width * 0.63))
@@ -203,7 +204,7 @@ def make_static_slide(scene: TitleScene | OutroScene, context: RenderContext) ->
     image = Image.new("RGBA", (width, height), background)
     draw = ImageDraw.Draw(image, "RGBA")
     foreground = context.template.brandColor if scene.type == "title" else "#ffffff"
-    lines = wrap_text(scene.caption, context.font_bold, max(1, int(width * 0.82)), draw)
+    lines = wrap_text(scene.caption or "", context.font_bold, max(1, int(width * 0.82)), draw)
     line_boxes = [draw.textbbox((0, 0), line, font=context.font_bold) for line in lines]
     line_height = max(box[3] - box[1] for box in line_boxes)
     total_height = line_height * len(lines) + max(3, height // 128) * (len(lines) - 1)
@@ -255,7 +256,6 @@ class VideoRenderer:
     scene_type = "video"
 
     def render(self, scene: Scene, context: RenderContext, duration: float) -> media.MediaClip:
-        del duration
         video_scene = cast(VideoScene, scene)
         source_path = resolve_path(video_scene.src, base_dir=context.script_dir)
         if not source_path.is_file():
@@ -265,7 +265,7 @@ class VideoRenderer:
         start = min(video_scene.start, source_duration)
         requested_end = video_scene.end
         if requested_end is None:
-            requested_end = video_scene.start + cast(float, video_scene.duration)
+            requested_end = video_scene.start + (video_scene.duration or duration)
         end = min(requested_end, source_duration)
         if end <= start:
             raise ValueError("video trim is outside the source clip duration")

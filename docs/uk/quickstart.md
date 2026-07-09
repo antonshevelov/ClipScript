@@ -14,13 +14,13 @@ pip install -r requirements-dev.txt
 ## Генерація прикладу
 
 ```bash
-clipscript generate --input examples/scripts/chat-only.json --overwrite
+clipscript generate --input examples/scripts/offline-smoke.json --overwrite
 ```
 
 Результат:
 
 ```text
-examples/output/chat-only.mp4
+examples/output/offline-smoke.mp4
 ```
 
 ## ElevenLabs

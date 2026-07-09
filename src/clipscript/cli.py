@@ -8,15 +8,10 @@ import typer
 from rich.console import Console
 
 from clipscript.engine import render_project, validate_project_references
-from clipscript.models import ScriptConfig
 from clipscript.project import Project, ProjectError, load_project, resolve_path
 
 app = typer.Typer(help="Generate vertical videos from versioned JSON scripts.")
 console = Console()
-
-# Compatibility imports for integrations that previously imported these from cli.py.
-VideoConfig = ScriptConfig
-
 
 def _load(input_path: str) -> Project:
     try:
@@ -28,9 +23,7 @@ def _load(input_path: str) -> Project:
 
 @app.command()
 def validate(
-    input_path: str = typer.Option(
-        "examples/scripts/offline-smoke.json", "--input", "-i", help="Path to a JSON video script."
-    ),
+    input_path: str = typer.Option(..., "--input", "-i", help="Path to a JSON video script."),
 ) -> None:
     """Validate a script, its template, and all referenced assets."""
     project = _load(input_path)
@@ -44,9 +37,7 @@ def validate(
 
 @app.command()
 def generate(
-    input_path: str = typer.Option(
-        "examples/scripts/offline-smoke.json", "--input", "-i", help="Path to a JSON video script."
-    ),
+    input_path: str = typer.Option(..., "--input", "-i", help="Path to a JSON video script."),
     output_path: Optional[str] = typer.Option(  # noqa: UP045 - Typer evaluates hints on Python 3.9.
         None, "--output", "-o", help="Path for the final MP4."
     ),

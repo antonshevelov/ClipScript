@@ -34,7 +34,7 @@ Script `output`, `template`, and video `src` paths resolve relative to the scrip
 }
 ```
 
-`duration` and a non-empty `messages` list are required. `participantCount` is `2` or `3`.
+In Schema v1, `duration` and a non-empty `messages` list are required. `participantCount` is `2` or `3`.
 
 ## Scene: `title`
 
@@ -47,7 +47,7 @@ Script `output`, `template`, and video `src` paths resolve relative to the scrip
 }
 ```
 
-`duration` and `caption` are required.
+In Schema v1, `duration` and `caption` are required.
 
 ## Scene: `video`
 
@@ -63,7 +63,7 @@ Script `output`, `template`, and video `src` paths resolve relative to the scrip
 }
 ```
 
-`src` and either `duration` or `end` are required. `start` defaults to `0`; `end` must exceed `start`. Crop is `[x1, y1, x2, y2]` with non-negative values and `x2 > x1`, `y2 > y1`. A requested range past the source is rendered at the actual clamped source duration.
+In Schema v1, `src` and either `duration` or `end` are required. `start` defaults to `0`; `end` must exceed `start`. Crop is `[x1, y1, x2, y2]` with non-negative values and `x2 > x1`, `y2 > y1`. A requested range past the source is rendered at the actual clamped source duration.
 
 ## Scene: `outro`
 
@@ -76,11 +76,13 @@ Script `output`, `template`, and video `src` paths resolve relative to the scrip
 }
 ```
 
-`duration` and `caption` are required. `url` is optional.
+In Schema v1, `duration` and `caption` are required. `url` is optional.
 
 ## Legacy 0.1.0 Scripts
 
 Unversioned scripts remain accepted when they include the legacy root `voiceover` array. Its length must equal the number of scenes; the loader migrates each entry into matching scene-level `voiceover` before strict validation.
+
+Legacy scenes may omit timing. Chat, title, and outro then use their voiceover duration, or a 5-second fallback. Video scenes without `duration` or `end` likewise use voiceover duration or 5 seconds, clamped to the source media.
 
 `examples/scripts/legacy-v0.json` is a runnable validation fixture for this compatibility path.
 

@@ -9,11 +9,15 @@ from typer.testing import CliRunner
 from clipscript.cli import app
 from clipscript.engine import render_project
 from clipscript.project import load_project
-from clipscript.tts import TTSRegistry
+from clipscript.tts import TTSGenerationError, TTSRegistry
 
 
 def write_project(
-    tmp_path: Path, *, voiceover: str | None = None, scene: dict[str, object] | None = None
+    tmp_path: Path,
+    *,
+    voiceover: str | None = None,
+    scene: dict[str, object] | None = None,
+    output: str = "output/smoke.mp4",
 ) -> Path:
     template_path = tmp_path / "template.json"
     template_path.write_text(
@@ -28,7 +32,7 @@ def write_project(
             {
                 "schemaVersion": 1,
                 "title": "Smoke",
-                "output": "output/smoke.mp4",
+                "output": output,
                 "template": "template.json",
                 "scenes": [effective_scene],
             }
@@ -44,6 +48,41 @@ def test_validate_command_accepts_schema_v1_script(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert "Script is valid" in result.output
+
+
+@pytest.mark.parametrize("command", ["validate", "generate"])
+def test_cli_requires_an_input_path(command: str) -> None:
+    result = CliRunner().invoke(app, [command])
+
+    assert result.exit_code != 0
+    assert "Missing option" in result.output
+
+
+def test_cli_help_documents_required_input() -> None:
+    result = CliRunner().invoke(app, ["validate", "--help"])
+
+    assert result.exit_code == 0
+    assert "--input" in result.output
+    assert "[required]" in result.output
+
+
+def test_validate_rejects_non_mp4_output(tmp_path: Path) -> None:
+    result = CliRunner().invoke(app, ["validate", "--input", str(write_project(tmp_path, output="demo.avi"))])
+
+    assert result.exit_code != 0
+    assert "mp4" in result.output
+
+
+def test_generate_reports_provider_errors_without_traceback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def raise_provider_error(*args: object, **kwargs: object) -> Path:
+        raise TTSGenerationError("TTS provider 'edge' failed; check provider settings and network access")
+
+    monkeypatch.setattr("clipscript.cli.render_project", raise_provider_error)
+    result = CliRunner().invoke(app, ["generate", "--input", str(write_project(tmp_path))])
+
+    assert result.exit_code == 1
+    assert "Render failed" in result.output
+    assert "Traceback" not in result.output
 
 
 class FailingProvider:

@@ -54,12 +54,14 @@ New scripts require `schemaVersion: 1`. Voiceover is optional and belongs to the
 
 The schema is strict: unknown fields, wrong scene field combinations, invalid trim/crop values, invalid FPS, and invalid resolution are rejected. See `docs/script-format.md` for the complete format.
 
+Both CLI commands require an explicit `--input` path, so installed packages do not rely on repository examples.
+
 ## Scene Types
 
 - `chat`: animated messages, duration, and chat presentation options.
-- `title`: required duration and caption.
-- `video`: required `src` and either `duration` or `end`; the result is clamped to source media length.
-- `outro`: required duration and caption, with optional URL.
+- `title`: Schema v1 requires duration and caption.
+- `video`: Schema v1 requires `src` and either `duration` or `end`; the result is clamped to source media length.
+- `outro`: Schema v1 requires duration and caption, with optional URL.
 
 Paths in scripts are relative to the script file. Template `logo` is relative to the template file.
 
@@ -74,7 +76,11 @@ The default Edge provider needs no key. ElevenLabs uses `ELEVENLABS_API_KEY` and
 - `examples/scripts/legacy-v0.json` is a loadable 0.1.0-format compatibility fixture.
 - `examples/scripts/app-demo.json` intentionally requires `examples/assets/app-demo.mp4`; add a real screen recording before validating or rendering it.
 
-Unversioned 0.1.0 scripts with a root `voiceover` array remain supported. The loader migrates matching entries to scene-level voiceover before validation. Versioned Schema v1 scripts must not include root `voiceover`; this is the only format-level breaking change in 0.1.1.
+Unversioned 0.1.0 scripts with a root `voiceover` array remain supported. The loader migrates matching entries to scene-level voiceover before validation; scenes without timing use voiceover duration or a 5-second fallback. Versioned Schema v1 scripts must not include root `voiceover`; this is the only format-level breaking change in 0.1.1.
+
+The Python module API is alpha and changed in 0.1.1: import models from `clipscript.models`, project loading from `clipscript.project`, and rendering from `clipscript.engine`. Imports from the old monolithic `clipscript.cli` module are not a compatibility surface.
+
+Renderer and TTS registries are internal dependency-injection extension points for Python integrations, not a JSON plugin API.
 
 ## Development
 
